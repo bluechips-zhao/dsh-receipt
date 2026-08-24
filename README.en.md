@@ -28,6 +28,11 @@ Install from GitHub (no local build required):
 pnpm dsh plugin --profile web add github:bluechips-zhao/dsh-receipt
 ```
 
+> If you're not comfortable with the command line, just paste this repo link
+> `https://github.com/bluechips-zhao/dsh-receipt` to your AI assistant (e.g.
+> DeepSeek Harness / any other AI) and let it run the `dsh plugin` install steps
+> below for you.
+
 After installing, **restart the GUI** (the receipt button appears on the right of
 the session header; open a conversation and click "Receipt").
 

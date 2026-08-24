@@ -25,6 +25,10 @@
 pnpm dsh plugin --profile web add github:bluechips-zhao/dsh-receipt
 ```
 
+> 如果不熟悉命令行/安装，也可以直接把本仓库链接
+> `https://github.com/bluechips-zhao/dsh-receipt` 发给你的 AI 助手（如 DeepSeek Harness / 其他 AI），
+> 让它照着本 README 的安装步骤帮你自动执行 `dsh plugin` 安装命令即可。
+
 安装后**重启 GUI**（小票按钮出现在会话头部右侧；打开会话后点击"小票"）。
 
 > 仓库**提交了构建好的 `lib/`**（`exports` 指向 `lib/index.js` 与 `lib/client.js`），
