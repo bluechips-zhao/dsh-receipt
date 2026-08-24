@@ -1,0 +1,3 @@
+# 统一行尾：源码与文本用 LF，避免跨平台贡献者产生无关的 CRLF diff。
+* text=auto eol=lf
+*.png binary

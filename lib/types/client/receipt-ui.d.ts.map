@@ -1,0 +1,1 @@
+{"version":3,"file":"receipt-ui.d.ts","sourceRoot":"","sources":["../../../src/client/receipt-ui.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AAEH,gBAAgB;AAChB,MAAM,WAAW,cAAc;IAC7B,IAAI,EAAE,OAAO,CAAA;IACb,8BAA8B;IAC9B,SAAS,EAAE,MAAM,GAAG,SAAS,CAAA;CAC9B;AAUD,0DAA0D;AAC1D,eAAO,MAAM,SAAS;uBACH,cAAc;wBACX,MAAM,IAAI,GAAG,MAAM,IAAI;IAI3C,4BAA4B;sBACV,MAAM,GAAG,IAAI;aAMtB,IAAI;CAKd,CAAA"}

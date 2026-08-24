@@ -1,0 +1,6 @@
+# dsh-receipt 插件层：插入小票插件行（host 投影单元 + client 界面）。
+# 覆盖定价：在 profile 的 cordis.patch.yml 里对该行 id 重写 config.pricing。
+- insert:
+    - id: dsh-receipt
+      name: dsh-receipt
+      config: {}

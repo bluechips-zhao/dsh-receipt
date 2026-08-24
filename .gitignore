@@ -1,0 +1,12 @@
+# 维护者本地构建 junction（指向本机 DeepSeek Harness checkout 与 profile node_modules），
+# 不进入 Git；用户通过 GitHub 安装的是已提交的 lib/ 产物，无需这些。
+node_modules/
+harness/
+
+# 本地构建/测试噪声
+*.log
+.DS_Store
+Thumbs.db
+
+# 可选：GUI 验证生成的截图可能含会话内容，默认不入库；需要时手动 -f 添加。
+scripts/receipt-demo.png

@@ -1,0 +1,228 @@
+/* 小票弹层与小票卡片样式（使用 dsh 主题 token，深浅色自动适配）。 */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--dsw-alias-bg-mask-drop, rgba(0, 0, 0, 0.45));
+  pointer-events: auto;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  width: min(92vw, 400px);
+  max-height: min(80vh, 720px);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-3);
+  border: 1px solid var(--dsw-alias-border-l3);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px 8px;
+  flex: none;
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+}
+
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.close:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
+}
+
+.body {
+  overflow-y: auto;
+  padding: 4px 14px 14px;
+}
+
+/* ---- 收据卡片本体 ---- */
+
+.receipt {
+  border: 1px dashed var(--dsw-alias-border-l3);
+  border-radius: 4px;
+  padding: 14px 16px;
+  font-size: 13px;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.meta {
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.sessionTitle {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sessionId,
+.printedAt {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.sep {
+  border-top: 1px dashed var(--dsw-alias-border-l3);
+  margin: 10px 0;
+}
+
+.model {
+  margin-bottom: 10px;
+}
+
+.modelHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.modelName {
+  font-weight: 600;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.provider {
+  font-weight: 400;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+}
+
+.subtotal {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.unpriced {
+  color: var(--dsw-alias-state-warn-primary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.modelCalls {
+  margin-top: 2px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.modelLines {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.modelLines li {
+  padding: 1px 0;
+}
+
+.totals {
+  margin: 0;
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+.totalRow dt {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.totalRow dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.grandTotal {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--dsw-alias-border-l3);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.amount {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.unpricedHint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--dsw-alias-state-warn-primary);
+}
+
+.peakLine {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.peakNote {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.empty {
+  margin: 8px 0;
+  text-align: center;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.footer {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary);
+  letter-spacing: 0.1em;
+}
