@@ -296,4 +296,23 @@ const seq = (() => { let n = 0; return () => n++ })()
   assert.equal(view2.models[0]!.cost, 3)
 }
 
+// ---- 13. 周末全天谷底：周六/周日即使落在高峰窗口时段也不计高峰（2026-08-23 官方规则）----
+{
+  // 1970-01-03 是周六。UTC 02:00 = 北京时间 10:00（默认高峰窗口内），但周末仍应按谷底计。
+  const SATURDAY_BEIJING_PEAK_TS = 2 * 86_400_000 + 2 * 3_600_000 + 0
+  // 1970-01-04 是周日。UTC 08:00 = 北京时间 16:00（默认高峰窗口内）。
+  const SUNDAY_BEIJING_PEAK_TS = 3 * 86_400_000 + 8 * 3_600_000
+  for (const ts of [SATURDAY_BEIJING_PEAK_TS, SUNDAY_BEIJING_PEAK_TS]) {
+    const state = fold([
+      stepStart(1, 1, ts, seq()),
+      message(1, 1, 'deepseek-chat', { inputTokens: 100, outputTokens: 50 }, ts + 100, seq()),
+    ])
+    const view = receiptView(state, DEFAULT_PRICING, '¥')
+    const row = view.models[0]!
+    assert.equal(row.peakCost, 0, '周末高峰窗口时段不应计高峰费用')
+    assert.ok(Math.abs(row.cost - 0.0006) < 1e-12, '周末按谷底单价计费')
+    assert.equal(view.totals.peakCost, 0)
+  }
+}
+
 console.log('verify-projection: 全部断言通过 ✓')

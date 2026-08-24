@@ -55,18 +55,19 @@ export interface ReceiptState {
 }
 /** 单元 apply：一次提交事件 → 下一状态；不关心的事件返回同一引用。 */
 export declare function applyReceipt(state: ReceiptState, event: SessionEvent): ReceiptState;
-/** 默认高峰窗口（DeepSeek-V4 官方：北京时间 9:00-12:00、14:00-18:00）。 */
+/** 默认高峰窗口（DeepSeek-V4 官方：北京时间 9:00-12:00、14:00-18:00，仅工作日）。 */
 export declare const DEFAULT_PEAK_HOURS: readonly ReceiptPeakWindow[];
 /** 峰谷计价选项（缺省即 DeepSeek-V4 官方方案）。 */
 export interface PeakPricingOptions {
-    /** 高峰时段窗口（北京时间小时）。 */
+    /** 高峰时段窗口（北京时间小时，仅工作日生效；周末全天谷底）。 */
     peakHours?: readonly ReceiptPeakWindow[];
     /** 高峰单价倍率（官方为 2）。 */
     peakMultiplier?: number;
 }
 /**
  * 单元 view：state → wire 值。费用按注册时捕获的定价表现算，**逐 step
- * 按样本时间判断峰谷**：高峰时段单价 × peakMultiplier。模型 id 优先精确
+ * 按样本时间判断峰谷**（工作日高峰时段单价 × peakMultiplier；周末全天谷底）。
+ * 模型 id 优先精确
  * 匹配，其次 `provider/model` 复合键，再次别名基准模型（见 resolvePricing）。
  * 成本不落 state（改价即生效，无需重放）。
  */

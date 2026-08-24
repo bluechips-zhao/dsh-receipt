@@ -22,7 +22,7 @@ export interface Config {
     currency: string;
     /** 单价表（空闲时段基准价）：每 1M token 的价格，按模型 id 或 `provider/model` 键控。 */
     pricing: Record<string, PricingEntry>;
-    /** 高峰时段窗口（北京时间小时，半开区间 [start,end)）；默认 9-12、14-18。 */
+    /** 高峰时段窗口（北京时间小时，半开区间 [start,end)）；默认 9-12、14-18，仅工作日生效，周末全天谷底。 */
     peakHours: ReceiptPeakWindow[];
     /** 高峰单价倍率；默认 2（DeepSeek-V4 官方峰谷方案）。 */
     peakMultiplier: number;

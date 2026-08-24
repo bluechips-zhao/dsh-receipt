@@ -69,7 +69,7 @@ export interface ReceiptProjection {
   updatedAt: number
   /** 展示用的货币符号/代码（来自插件配置）。 */
   currency: string
-  /** 高峰时段窗口（北京时间小时，半开区间），用于客户端展示提示。 */
+  /** 高峰时段窗口（北京时间小时，半开区间，仅工作日生效；周末全天谷底），用于客户端展示提示。 */
   peakHours: ReceiptPeakWindow[]
   /** 高峰单价倍率。 */
   peakMultiplier: number

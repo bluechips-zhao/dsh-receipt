@@ -24,8 +24,8 @@ export declare const zh: {
     readonly 'time.llm': "模型耗时";
     readonly 'time.span': "会话跨度";
     readonly 'totals.label': "合计金额";
-    readonly 'totals.peakCost': "其中高峰时段费用 {amount}";
-    readonly 'peak.note': "高峰时段（北京时间 {window}）单价 ×{multiplier}";
+    readonly 'totals.peakCost': "其中工作日高峰时段费用 {amount}";
+    readonly 'peak.note': "工作日高峰时段（北京时间 {window}）单价 ×{multiplier}";
     readonly 'totals.unpriced': "包含未计价模型，合计费用仅供参考";
     readonly footer: "—— 谢谢惠顾 ——";
 };

@@ -241,13 +241,33 @@ function beijingHour(time: number): number {
   return (new Date(time).getUTCHours() + 8) % 24
 }
 
-/** 样本时间是否落在任一高峰窗口（半开区间 [start, end)）。 */
+/**
+ * 北京时间星期几（0=周日 … 6=周六）。用 UTC 日偏移 +8h 得到，避免夏令时歧义。
+ * DeepSeek-V4 官方规则（2026-08-23 起）：周末（周六、周日）全天不分峰谷，
+ * 统一按谷底（空闲）价计费，因此只有工作日才存在高峰时段。
+ */
+function beijingWeekday(time: number): number {
+  // 北京时间比 UTC 早 8 小时：把时间推进 8h 再取 UTC 星期，得到正确的北京星期。
+  return new Date(time + 8 * 60 * 60 * 1000).getUTCDay()
+}
+
+/** 是否工作日（周一至周五）。 */
+function isWeekday(time: number): boolean {
+  const day = beijingWeekday(time)
+  return day >= 1 && day <= 5
+}
+
+/**
+ * 样本时间是否落在任一高峰窗口（半开区间 [start, end)）。
+ * 仅工作日判定高峰；周末（周六、周日）全天视为谷底，恒不命中。
+ */
 function isPeak(time: number, windows: readonly ReceiptPeakWindow[]): boolean {
+  if (!isWeekday(time)) return false
   const hour = beijingHour(time)
   return windows.some(window => hour >= window.start && hour < window.end)
 }
 
-/** 默认高峰窗口（DeepSeek-V4 官方：北京时间 9:00-12:00、14:00-18:00）。 */
+/** 默认高峰窗口（DeepSeek-V4 官方：北京时间 9:00-12:00、14:00-18:00，仅工作日）。 */
 export const DEFAULT_PEAK_HOURS: readonly ReceiptPeakWindow[] = [
   { start: 9, end: 12 },
   { start: 14, end: 18 },
@@ -255,7 +275,7 @@ export const DEFAULT_PEAK_HOURS: readonly ReceiptPeakWindow[] = [
 
 /** 峰谷计价选项（缺省即 DeepSeek-V4 官方方案）。 */
 export interface PeakPricingOptions {
-  /** 高峰时段窗口（北京时间小时）。 */
+  /** 高峰时段窗口（北京时间小时，仅工作日生效；周末全天谷底）。 */
   peakHours?: readonly ReceiptPeakWindow[]
   /** 高峰单价倍率（官方为 2）。 */
   peakMultiplier?: number
@@ -263,7 +283,8 @@ export interface PeakPricingOptions {
 
 /**
  * 单元 view：state → wire 值。费用按注册时捕获的定价表现算，**逐 step
- * 按样本时间判断峰谷**：高峰时段单价 × peakMultiplier。模型 id 优先精确
+ * 按样本时间判断峰谷**（工作日高峰时段单价 × peakMultiplier；周末全天谷底）。
+ * 模型 id 优先精确
  * 匹配，其次 `provider/model` 复合键，再次别名基准模型（见 resolvePricing）。
  * 成本不落 state（改价即生效，无需重放）。
  */
