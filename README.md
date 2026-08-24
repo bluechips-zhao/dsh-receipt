@@ -4,11 +4,13 @@
 
 为 DeepSeek Harness Web GUI 增加"小票"：在每个会话的头部栏放一个小票按钮，
 点击弹出该会话的消费小票（收据样式），展示：
+<img width="768" height="203" alt="image" src="https://github.com/user-attachments/assets/eeb3f912-a476-43bf-bc30-1001fafc8f06" />
 
 - **按模型明细**：模型名称、调用次数、输入 / 缓存读 / 缓存写 / 输出 / 推理 token、小计费用；
 - **合计**：调用次数、token 合计、模型耗时、会话跨度；
 - **金额**：按模型定价表折算的费用（默认 ¥，货币符号可配置）；
 - **出票时间**：最后一条计入事件的时间。
+<img width="772" height="811" alt="image" src="https://github.com/user-attachments/assets/1594b007-0a9a-481b-83bc-76b03c70845b" />
 
 数据由 host 端 `receipt` 会话投影单元从会话日志折叠（复用 `assistant/message`
 的 usage 与模型来源），随 `session/projection` 帧实时刷新；界面只负责展示，
