@@ -5,6 +5,7 @@
 Adds a "receipt" to the DeepSeek Harness Web GUI: a receipt button in each
 conversation's header bar. Clicking it opens that conversation's usage receipt
 (receipt-style) showing:
+<img width="768" height="203" alt="image" src="https://github.com/user-attachments/assets/4755029b-18d6-4faa-b4f3-b2c14970ca48" />
 
 - **Per-model breakdown**: model name, call count, input / cache-read /
   cache-write / output / reasoning tokens, subtotal cost;
@@ -12,6 +13,7 @@ conversation's header bar. Clicking it opens that conversation's usage receipt
 - **Cost**: amortized from the model pricing table (default ¥, currency symbol
   is configurable);
 - **Printed-at**: the timestamp of the last event that was counted.
+<img width="772" height="811" alt="image" src="https://github.com/user-attachments/assets/87c1d5e1-3b21-4d9b-bf52-28852f51eef3" />
 
 The data is folded from the session log by a host-side `receipt` projection
 unit (reusing `assistant/message` usage and model attribution) and refreshed in
