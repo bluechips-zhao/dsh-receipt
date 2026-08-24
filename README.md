@@ -31,6 +31,13 @@ pnpm dsh plugin --profile web add github:bluechips-zhao/dsh-receipt
 
 安装后**重启 GUI**（小票按钮出现在会话头部右侧；打开会话后点击"小票"）。
 
+### 发现更多插件
+
+本插件通过 GitHub 的 [`dsh-plugin`](https://github.com/topics/dsh-plugin) 主题标签
+公开，可在该标签页浏览官方与社区插件仓库；如需可视化、应用商店式的浏览体验，
+也可前往社区维护的 [DSH-Plugin Hub](https://dsh-plugin.org)（第三方站点，非 DeepSeek
+官方运营）。
+
 > 仓库**提交了构建好的 `lib/`**（`exports` 指向 `lib/index.js` 与 `lib/client.js`），
 > 因此用户安装的是开箱即用的产物，无需重复构建。若你把本仓库改名或移到别的
 > 命名空间，请同步替换上面 `github:bluechips-zhao/dsh-receipt` 段。

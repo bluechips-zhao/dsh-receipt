@@ -36,6 +36,15 @@ pnpm dsh plugin --profile web add github:bluechips-zhao/dsh-receipt
 After installing, **restart the GUI** (the receipt button appears on the right of
 the session header; open a conversation and click "Receipt").
 
+### Discover more plugins
+
+This plugin is published under the GitHub
+[`dsh-plugin`](https://github.com/topics/dsh-plugin) topic, where official and
+community plugin repos can be browsed. For a visual, app-store-like experience,
+also check out the community-maintained
+[DSH-Plugin Hub](https://dsh-plugin.org) (a third-party site, not operated by
+DeepSeek).
+
 > The repo **commits the built `lib/`** (`exports` point to `lib/index.js` and
 > `lib/client.js`), so users install a ready-to-run artifact without building.
 > If you rename this repo or move it to another namespace, update the
