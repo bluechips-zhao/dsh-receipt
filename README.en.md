@@ -92,25 +92,25 @@ your actual bill**: override `config` (a full-section replacement) on the
 - `currency` only affects the displayed symbol; config changes take effect
   **immediately** via the profile config HMR, no restart needed.
 
-### DeepSeek-V4 peak/off-peak pricing notes (official; effective 2026-08-17, weekends all off-peak from 2026-08-23)
+### DeepSeek-V4 peak/off-peak pricing notes (official pricing page)
 
-DeepSeek-V4 uses **time-of-day pricing** (sources:
-[DeepSeek official pricing announcement](https://news.qq.com/rain/a/20260817V03S1500),
-[Sina Finance](https://finance.sina.cn/2026-08-17/detail-ininqpez7895655.d.html?vt=4)):
+DeepSeek-V4 uses **time-of-day pricing**. The official
+[Models & Pricing](https://api-docs.deepseek.com/quick_start/pricing/) page
+footnote (1) defines:
 
-- **Weekdays (Mon–Fri)**: peak hours daily 9:00–14:00, off-peak otherwise; peak
-  prices are **2x** off-peak.
-- **Weekends (Sat, Sun)**: **no peak/off-peak split** — all day billed at the
-  **off-peak (valley)** price
-  ([DeepSeek re-prices: weekends no longer split into peak/off-peak](https://finance.sina.cn/2026-08-23/detail-inipiiqm0423408.d.html),
-  [weekend API switched to all-day valley pricing](http://www.iheima.com/article-400996.html)).
+- **Peak hours**: Beijing time **Mon–Fri** 9:00–12:00 and 14:00–18:00
+  (two windows).
+- **Off-peak**: any time outside those windows, **including all day Sat & Sun**.
+- The off-peak price is **half** the peak price (i.e. peak = off-peak × 2).
 
 | Model | Window | Input (cache miss) | Input (cache hit) | Output |
 |---|---|---|---|---|
-| deepseek-v4-flash | Off-peak / weekend all day | ¥1.5 | ¥0.05 | ¥4.5 |
-| deepseek-v4-flash | Weekday peak 9:00–14:00 | ¥3.0 | ¥0.10 | ¥9.0 |
-| deepseek-v4-pro | Off-peak / weekend all day | ¥4.5 | ¥0.15 | ¥13.5 |
-| deepseek-v4-pro | Weekday peak 9:00–14:00 | ¥9.0 | ¥0.30 | ¥27.0 |
+| deepseek-v4-flash | Off-peak (incl. weekends all day) | ¥1.5 | ¥0.05 | ¥4.5 |
+| deepseek-v4-flash | Weekday peak 9:00–12:00, 14:00–18:00 | ¥3.0 | ¥0.10 | ¥9.0 |
+| deepseek-v4-pro | Off-peak (incl. weekends all day) | ¥4.5 | ¥0.15 | ¥13.5 |
+| deepseek-v4-pro | Weekday peak 9:00–12:00, 14:00–18:00 | ¥9.0 | ¥0.30 | ¥27.0 |
+| deepseek-v4-flash-vision-exp | Off-peak (incl. weekends all day) | ¥1.5 | ¥0.05 | ¥4.5 |
+| deepseek-v4-flash-vision-exp | Weekday peak 9:00–12:00, 14:00–18:00 | ¥3.0 | ¥0.10 | ¥9.0 |
 
 The receipt currently bills at a **single price** (we recommend configuring the
 off-peak price, which covers weekend all day and weekday off-peak hours); the
