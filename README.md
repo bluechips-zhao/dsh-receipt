@@ -55,7 +55,8 @@ pnpm dsh plugin --profile web add github:bluechips-zhao/dsh-receipt
   `scripts/*` 读取若干环境变量，这些属于**构建与自检工具链**，不随包分发
   （`files` 只含 `lib/` 与文档）。静态扫描若把它们计为权限信号，属构建面而非运行面。
 - **兼容性**：Node.js `^22.19.0 || >=24`；DSH 逐版本声明见 `package.json` 的
-  `dsh.compatibility.dshReleases`（当前在 `0.1.5-rc.1` 上验证）。
+  `dsh.compatibility.dshReleases`（当前在 `0.1.5-rc.1` 上完成宿主半的 typecheck 与
+  投影折叠自检；客户端半要求界面包与宿主安装在同一版本线上）。
 - **已知边界**：费用是按配置定价表做的本地估算，非账单口径；定价表未声明的模型
   以"未计价"展示；峰谷时段按样本事件时间（本机时钟）判定。
 
