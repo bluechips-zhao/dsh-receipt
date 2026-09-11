@@ -2,12 +2,13 @@
  * `receipt` 投影单元：把会话日志折叠成按模型聚合的消费小票。
  *
  * 事件语义与同族的 `sessionStats` / `tokenUsage` 保持一致：
- * - 一个 step 的 usage 报告是相邻的（先 `assistant/chunk`(usage) 早采样，
- *   后 `assistant/message` 终值），后到者整步替换先到者，绝不重复计数；
+ * - 一个 step 的 usage 随 `assistant/message` 一同落地（当前会话事件映射里
+ *   没有独立的用量记录，也没有增量的 `assistant/chunk`）：同一 (turn, step)
+ *   的重复样本整步替换先前的样本，绝不重复计数；
  * - 只有落地了 `assistant/message` 的 step 才算该模型的一次"调用"
  *   （消息的 `message.source` 携带 provider/model，是模型归因的唯一真相）；
- * - 仅报告 usage chunk、未落地消息的 step（如被取消的调用）计入
- *   "未知模型"行，模型耗时不计（与 sessionStats 对取消 step 的处理一致）；
+ * - `assistant/attempt` 不携带 usage，故未落地消息的 step 不产生 token，
+ *   模型耗时也不计（与 sessionStats 对取消 step 的处理一致）；
  * - 模型耗时 = step/start → assistant/message 之和（llmMs）。
  *
  * state 是纯 JSON（持久化投影缓存前置条件）；view 是纯函数，按注册时
@@ -19,7 +20,7 @@ import type { SessionEvent } from '@deepseek-ai/dsh-session';
 import type { ProjectionDefinition } from '@deepseek-ai/dsh-session-projection';
 import type { ReceiptPeakWindow, ReceiptProjection, ReceiptTokenCounts } from './types.ts';
 import { type PricingTable } from './pricing.ts';
-/** 一个 step 的用量样本；provider/model 为 null 表示未知（仅 chunk 采样）。 */
+/** 一个 step 的用量样本；provider/model 为 null 表示未知（仅用于无先前样本的哨兵）。 */
 interface StepSample extends ReceiptTokenCounts {
     provider: string | null;
     model: string | null;

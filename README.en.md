@@ -50,6 +50,29 @@ DeepSeek).
 > If you rename this repo or move it to another namespace, update the
 > `github:bluechips-zhao/dsh-receipt` segment above accordingly.
 
+## Dependencies, permissions, and compatibility
+
+- **External dependencies**: no external service, no network request, no command
+  execution. At runtime the plugin only reads the host-side `receipt` projection and
+  `useSessions` row data; every dependency goes through peer / profile fallback
+  (`$DSH_HOME/profiles/node_modules`) and never duplicates the Cordis / React /
+  schemastery runtime identity.
+- **Permissions**: the runtime code (`lib/index.js`, `lib/client.js`) registers one
+  projection unit and two slot seats — it does **not** touch the filesystem, read
+  credentials, or spawn a subprocess. The host half injects only
+  `sessionProjections`; the client half injects only `sessions` / `slots` / `locale`.
+- **Build-time signals**: `tsdown.config.ts` uses `node:fs` to read and check emitted
+  artifacts, and `scripts/*` read a few environment variables. Both belong to the
+  build and self-check toolchain and are not published (`files` ships `lib/` and the
+  docs only). A static scan that counts them as permission signals is reading the
+  build surface, not the runtime surface.
+- **Compatibility**: Node.js `^22.19.0 || >=24`; the per-version DSH declaration
+  lives in `package.json` under `dsh.compatibility.dshReleases` (currently verified
+  on `0.1.5-rc.1`).
+- **Known bounds**: costs are a local estimate from the configured pricing table, not
+  a billing record; models missing from the table render as unpriced; peak/off-peak
+  is decided from the sample event time (local clock).
+
 ## Build (maintainers)
 
 Only **plugin authors/maintainers** need to build; regular users install the
@@ -155,8 +178,9 @@ pnpm dsh --profile web --dump-config | findstr dsh-receipt
 - Host half: the `receipt` projection unit in `src/projection.ts` — pure
   synchronous folding, state is plain JSON (persistable cache), `view` computes
   cost from the pricing table captured at registration; replacement semantics
-  match `tokenUsage` (chunk sample → message final value within a step, whole
-  step replaces without double-counting).
+  match `tokenUsage` (a repeated sample for one step replaces the previous one
+  without double-counting — usage lands with `assistant/message`, and the current
+  event map has no `assistant/chunk`).
 - Client half: the "Receipt" button in `conversation.session.header.actions` +
   the receipt overlay in `shell.overlay`; open state is coordinated through a
   plugin-internal module-level store, and data is read from

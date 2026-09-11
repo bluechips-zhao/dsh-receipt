@@ -1,6 +1,6 @@
 /**
  * 小票投影折叠逻辑的独立验证脚本（node:assert，经 tsx 运行）。
- * 覆盖：按模型聚合、chunk→message 整步替换不重复计数、未知模型桶、
+ * 覆盖：按模型聚合、同一 step 重复样本整步替换不重复计数、未报告 usage、
  * 缓存/推理分桶计价、未计价模型、llmMs/spanMs、定价覆盖与复合键。
  *
  * 运行：pnpm exec tsx scripts/verify-projection.ts
@@ -19,10 +19,6 @@ function ev(type: string, data: Record<string, unknown>, time: number, seq: numb
 
 function stepStart(turn: number, step: number, time: number, seq: number): SessionEvent {
   return ev('step/start', { turn, step }, time, seq)
-}
-
-function usageChunk(turn: number, step: number, usage: TokenUsage, time: number, seq: number): SessionEvent {
-  return ev('assistant/chunk', { turn, step, chunk: { type: 'usage', usage } }, time, seq)
 }
 
 function message(
@@ -81,11 +77,12 @@ const seq = (() => { let n = 0; return () => n++ })()
   assert.equal(view.currency, '¥')
 }
 
-// ---- 2. chunk→message 整步替换：不重复计数 ----
+// ---- 2. 同一 step 的重复样本整步替换：不重复计数 ----
 {
   const state = fold([
     stepStart(1, 1, 0, seq()),
-    usageChunk(1, 1, { inputTokens: 100, outputTokens: 50 }, 500, seq()),
+    // 中断的 step 先落一条未报告 usage 的消息，随后被该 step 的终值替换
+    message(1, 1, 'deepseek-chat', undefined, 500, seq()),
     message(1, 1, 'deepseek-chat', { inputTokens: 120, outputTokens: 60 }, 1_000, seq()),
   ])
   const view = receiptView(state, DEFAULT_PRICING, '¥')
@@ -97,24 +94,22 @@ const seq = (() => { let n = 0; return () => n++ })()
   assert.equal(view.totals.outputTokens, 60)
 }
 
-// ---- 3. 仅 usage chunk（未落地消息）→ 未知模型桶 ----
+// ---- 3. 适配器未报告 usage：零 token，但仍计一次调用 ----
 {
   const state = fold([
     stepStart(1, 1, 0, seq()),
-    usageChunk(1, 1, { inputTokens: 30, outputTokens: 10 }, 400, seq()),
+    message(1, 1, 'deepseek-chat', undefined, 400, seq()),
     stepEnd(1, 1, 500, seq()),
   ])
   const view = receiptView(state, DEFAULT_PRICING, '¥')
   assert.equal(view.models.length, 1)
-  const unknown = view.models[0]!
-  assert.equal(unknown.model, '')
-  assert.equal(unknown.provider, '')
-  assert.equal(unknown.calls, 0)
-  assert.equal(unknown.inputTokens, 30)
-  assert.equal(unknown.outputTokens, 10)
-  assert.equal(unknown.priced, false)
-  assert.equal(view.priced, false)
-  assert.equal(view.llmMs, 0) // 无消息：模型耗时不计
+  const row = view.models[0]!
+  assert.equal(row.model, 'deepseek-chat')
+  assert.equal(row.calls, 1)
+  assert.equal(row.inputTokens, 0)
+  assert.equal(row.outputTokens, 0)
+  assert.equal(view.totals.inputTokens, 0)
+  assert.equal(view.llmMs, 400) // 消息落地：模型耗时照计
 }
 
 // ---- 4. 缓存/推理分桶计价 ----

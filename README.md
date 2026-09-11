@@ -42,6 +42,23 @@ pnpm dsh plugin --profile web add github:bluechips-zhao/dsh-receipt
 > 因此用户安装的是开箱即用的产物，无需重复构建。若你把本仓库改名或移到别的
 > 命名空间，请同步替换上面 `github:bluechips-zhao/dsh-receipt` 段。
 
+## 依赖、权限与兼容性
+
+- **外部依赖**：无外部服务、无网络请求、无命令执行。运行期只读 host 侧的
+  `receipt` 投影与 `useSessions` 行数据；依赖全部走 peer / profile fallback
+  （`$DSH_HOME/profiles/node_modules`），不复制 Cordis / React / schemastery
+  的运行时身份。
+- **权限**：运行时代码（`lib/index.js`、`lib/client.js`）只注册一个投影单元与两个
+  slot 座位——**不访问文件系统、不读取凭据、不启动子进程**。host 半 `inject` 仅
+  `sessionProjections`；client 半 `inject` 仅 `sessions` / `slots` / `locale`。
+- **构建期信号**：仓库内 `tsdown.config.ts` 用 `node:fs` 读取/校验产物、
+  `scripts/*` 读取若干环境变量，这些属于**构建与自检工具链**，不随包分发
+  （`files` 只含 `lib/` 与文档）。静态扫描若把它们计为权限信号，属构建面而非运行面。
+- **兼容性**：Node.js `^22.19.0 || >=24`；DSH 逐版本声明见 `package.json` 的
+  `dsh.compatibility.dshReleases`（当前在 `0.1.5-rc.1` 上验证）。
+- **已知边界**：费用是按配置定价表做的本地估算，非账单口径；定价表未声明的模型
+  以"未计价"展示；峰谷时段按样本事件时间（本机时钟）判定。
+
 ## 构建（维护者）
 
 只有**插件作者/维护者**需要构建；普通用户直接安装 `lib/` 产物即可。
@@ -135,7 +152,8 @@ pnpm dsh --profile web --dump-config | findstr dsh-receipt
 
 - host 半：`src/projection.ts` 的 `receipt` 投影单元——纯同步折叠，state 为纯
   JSON（可持久化缓存），`view` 按注册时捕获的定价表现算费用；替换语义与
-  `tokenUsage` 一致（同 step 的 chunk 采样 → 消息终值，整步替换不重复计数）。
+  `tokenUsage` 一致（同一 step 的相邻样本整步替换，不重复计数；用量随
+  `assistant/message` 一同落地，当前事件映射里已无 `assistant/chunk`）。
 - client 半：`conversation.session.header.actions` 的"小票"按钮 +
   `shell.overlay` 的小票弹层；打开状态经插件内模块级 store 协调，
   数据读 `useSessions` 行上的 `projectionValues.receipt`（实时帧驱动）。
