@@ -85,9 +85,10 @@ pnpm run build      # tsc host + client 类型检查与产物，tsdown 出 lib/i
 
 ## 配置（定价）
 
-插件默认只内置 DeepSeek 官方长期公开的经典模型价格，其余模型显示"未计价"、
-费用记 0。**请按你的实际账单配置价格**：在 profile 的
-`cordis.patch.yml` 里对 `dsh-receipt` 行覆盖 `config`（整段替换）：
+插件内置 DeepSeek 官方定价页公开的单价的**空闲（谷底）时段价**——当前在售的
+`deepseek-flash`（V4.1-Flash）与 `deepseek-v4-pro`，以及历史经典模型；其余模型显示
+"未计价"、费用记 0。分时（峰谷）计价由折叠按样本时间自动处理（见下节）。要覆盖默认价，
+在 profile 的 `cordis.patch.yml` 里对 `dsh-receipt` 行覆盖 `config`（整段替换）：
 
 ```yaml
 # 在你的 profile 的 cordis.patch.yml 中（如 <DSH_HOME>/profiles/web/cordis.patch.yml）
@@ -95,42 +96,46 @@ pnpm run build      # tsc host + client 类型检查与产物，tsdown 出 lib/i
   config:
     currency: ¥
     pricing:
-      deepseek-chat: { input: 2, cacheRead: 0.5, output: 8 }        # ¥/1M tokens
-      deepseek-reasoner: { input: 4, cacheRead: 1, output: 16 }
-      deepseek-v4-flash: { input: 1.5, cacheRead: 0.05, output: 4.5 }   # DeepSeek-V4 空闲时段
-      deepseek-official/deepseek-v4-pro: { input: 4.5, cacheRead: 0.15, output: 13.5 }
-      # deepseek-v4-flash-vision-exp 与上面 deepseek-v4-flash 同价，自动沿用，无需配置。
+      # 下列三项已内置，此处仅作覆盖示例；单位 ¥/1M tokens，写空闲（谷底）时段价
+      deepseek-flash: { input: 1, cacheRead: 0.02, output: 4 }
+      deepseek-v4-pro: { input: 4.5, cacheRead: 0.15, output: 13.5 }
+      deepseek-chat: { input: 2, cacheRead: 0.5, output: 8 }
 ```
 
 - 单价单位：**每 1M token 的货币额**；字段：`input` / `cacheRead` / `cacheWrite`
   / `output` / `reasoning`，缺省按 0 计。
 - 键优先精确模型 id，其次 `provider/model` 复合键，再次**同价别名**基准模型
   （本插件不做跨 provider 冲突合并）。
-- **同价别名**：`deepseek-v4-flash-vision-exp` 与 `deepseek-v4-flash` 同价，由内置
-  `PRICING_ALIASES` 映射；配置了 `deepseek-v4-flash` 后 vision-exp 自动沿用其价格，
-  无需重复配置（若单独配置 vision-exp，则以它自己的价格为准）。
+- **同价别名**：已下线的旧名 `deepseek-v4-flash`、`deepseek-v4-flash-vision-exp`
+  仍可调用，由 DeepSeek-V4.1-Flash 提供服务并按 Flash 价格计费，故内置 `PRICING_ALIASES`
+  把它们映射到 `deepseek-flash`；若单独配置旧名，则以它自己的价格为准。
 - `currency` 只影响展示符号；改配置由 profile 配置 HMR **实时生效**，无需重启。
 
-### DeepSeek-V4 峰谷定价说明（官方定价页）
+### 分时（峰谷）定价说明（官方定价页）
 
-DeepSeek-V4 系列采用**分时计价**。官方[模型 & 价格](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)页脚注(1) 定义：
+DeepSeek 现行模型采用**分时计价**。官方[模型 & 价格](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)页脚注(3) 定义：
 
 - **高峰时段**：北京时间**周一至周五** 9:00–12:00、14:00–18:00（共两个窗口）。
 - **空闲时段**：上述高峰窗口之外的时间，**含周六、周日全天**。
-- 空闲时段价格为高峰时段价格的**一半**（即高峰 = 空闲 ×2）。
+- 空闲时段价格为高峰时段价格的**一半**（即高峰 = 空闲 ×2，对应内置 `peakMultiplier: 2`）。
 
 | 模型 | 时段 | 输入(缓存未命中) | 输入(缓存命中) | 输出 |
 |---|---|---|---|---|
-| deepseek-v4-flash | 空闲（含周末全天） | ¥1.5 | ¥0.05 | ¥4.5 |
-| deepseek-v4-flash | 工作日高峰 9:00–12:00、14:00–18:00 | ¥3.0 | ¥0.10 | ¥9.0 |
-| deepseek-v4-pro | 空闲（含周末全天） | ¥4.5 | ¥0.15 | ¥13.5 |
-| deepseek-v4-pro | 工作日高峰 9:00–12:00、14:00–18:00 | ¥9.0 | ¥0.30 | ¥27.0 |
-| deepseek-v4-flash-vision-exp | 空闲（含周末全天） | ¥1.5 | ¥0.05 | ¥4.5 |
-| deepseek-v4-flash-vision-exp | 工作日高峰 9:00–12:00、14:00–18:00 | ¥3.0 | ¥0.10 | ¥9.0 |
+| `deepseek-flash`（V4.1-Flash） | 空闲（含周末全天） | ¥1 | ¥0.02 | ¥4 |
+| `deepseek-flash` | 工作日高峰 9:00–12:00、14:00–18:00 | ¥2.0 | ¥0.04 | ¥8.0 |
+| `deepseek-v4-pro`（V4-Pro-0813） | 空闲（含周末全天） | ¥4.5 | ¥0.15 | ¥13.5 |
+| `deepseek-v4-pro` | 工作日高峰 9:00–12:00、14:00–18:00 | ¥9.0 | ¥0.30 | ¥27.0 |
 
-小票当前按**单一单价**计费（建议配置空闲时段价，即周末全天与工作日空闲时段价）；
-工作日高峰时段的实际费用约为小票金额的 **2 倍**，周末则与小票金额一致。若需要按时段
-精确计价，可在小票插件后续版本中扩展（按 step 时间戳折叠，并区分工作日/周末）。
+小票按 step 样本时间折叠峰谷：内置默认价写的是**空闲时段价**，落在工作日高峰窗口的样本
+按 `peakMultiplier`（默认 2）计，周末全天按谷底价计。因此小票金额本身就是**分时精确**的，
+无需再手动乘 2；要改窗口或倍率，配置 `peakHours` / `peakMultiplier` 即可。
+
+**命名与下线提醒（官方定价页脚注 1、2）**：新模型名请用 `deepseek-flash`；旧名
+`deepseek-v4-flash`、`deepseek-v4-flash-vision-exp` 仍可调用，但由 V4.1-Flash 提供服务
+并按 Flash 价计费（已内置别名）。北京时间 **2026-09-14 12:00** 起、至 V4.1 Pro 上线前，
+`deepseek-v4-pro` 的请求将全部路由到 V4.1-Flash 并按 **Flash 价格**计费——该日期之后
+若你仍在使用 `deepseek-v4-pro` 这个名字，实际账单会低于小票按 V4-Pro 单价算出的金额；
+此时可把该条目改成 Flash 价，或删掉它让内置别名生效。
 
 ## 验证
 

@@ -1,9 +1,9 @@
 /**
  * 模型定价表：每 1M token 的价格（当前货币单位，默认人民币 ¥）。
  *
- * 只内置 DeepSeek 官方长期公开的经典模型定价；其余模型（如
- * deepseek-v4-flash / v4-pro）不猜测价格，未配置时按"未计价"展示，
- * 由用户在 profile 配置里按需补充（见 README）。
+ * 内置 DeepSeek 官方定价页公开的单价：当前在售的 deepseek-flash（V4.1-Flash）
+ * 与 deepseek-v4-pro，以及历史经典模型；其余模型不猜测价格，未配置时按
+ * "未计价"展示，由用户在 profile 配置里按需补充（见 README）。
  *
  * 对"与主型号同价"的模型族（如 deepseek-v4-flash-vision-exp 与
  * deepseek-v4-flash 同价），通过 PRICING_ALIASES 建立只读映射：别名模型
@@ -34,8 +34,10 @@ export type PricingTable = Readonly<Record<string, PricingEntry>>
  * （即"与主型号同价"），无需在 pricing 里重复配置；本表不猜测价格数值。
  */
 export const PRICING_ALIASES: Readonly<Record<string, string>> = {
-  // deepseek-v4-flash-vision-exp 与 deepseek-v4-flash 同价（仅多模态/视觉能力，无额外计费）。
-  'deepseek-v4-flash-vision-exp': 'deepseek-v4-flash',
+  // 旧名 deepseek-v4-flash 与 deepseek-v4-flash-vision-exp 对应的模型已下线，但请求
+  // 仍可调用并由 DeepSeek-V4.1-Flash 提供服务、按 Flash 价格计费（官方定价页脚注 1）。
+  'deepseek-v4-flash': 'deepseek-flash',
+  'deepseek-v4-flash-vision-exp': 'deepseek-flash',
 }
 
 /**
@@ -51,8 +53,18 @@ export function resolvePricing(pricing: PricingTable, provider: string, model: s
   return pricing[base] ?? pricing[`${provider}/${base}`]
 }
 
-/** 内置默认定价（DeepSeek 官方公开价格，¥/1M tokens）。 */
+/**
+ * 内置默认定价（DeepSeek 官方公开价格，¥/1M tokens）。
+ *
+ * 分时计价的模型按**空闲（谷底）时段单价**内置：折叠时对落在工作日高峰窗口的
+ * 样本乘 `peakMultiplier`（官方为 2），故此处只写谷底价（官方：空闲 = 高峰的一半）。
+ */
 export const DEFAULT_PRICING: PricingTable = {
+  // DeepSeek-V4.1-Flash：空闲 1 / 0.02 / 4，高峰 2 / 0.04 / 8。
+  'deepseek-flash': { input: 1, cacheRead: 0.02, output: 4 },
+  // DeepSeek-V4-Pro-0813：空闲 4.5 / 0.15 / 13.5，高峰 9 / 0.3 / 27。
+  'deepseek-v4-pro': { input: 4.5, cacheRead: 0.15, output: 13.5 },
+  // 历史经典模型（官方定价页已不再列出，保留供旧配置使用）。
   'deepseek-chat': { input: 2, cacheRead: 0.5, output: 8 },
   'deepseek-reasoner': { input: 4, cacheRead: 1, output: 16 },
 }

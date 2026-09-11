@@ -137,7 +137,7 @@ const seq = (() => { let n = 0; return () => n++ })()
 {
   const state = fold([
     stepStart(1, 1, 0, seq()),
-    message(1, 1, 'deepseek-v4-flash', { inputTokens: 100, outputTokens: 50 }, 1_000, seq()),
+    message(1, 1, 'vendor-unknown-model', { inputTokens: 100, outputTokens: 50 }, 1_000, seq()),
   ])
   const view = receiptView(state, DEFAULT_PRICING, '¥')
   const row = view.models[0]!
@@ -262,26 +262,29 @@ const seq = (() => { let n = 0; return () => n++ })()
   assert.equal(parsed.peakMultiplier, 2)
 }
 
-// ---- 12. 别名计价：deepseek-v4-flash-vision-exp 沿用 deepseek-v4-flash 定价 ----
+// ---- 12. 别名计价：已下线旧名（deepseek-v4-flash / -vision-exp）沿用 deepseek-flash 定价 ----
 {
   const custom: PricingTable = {
-    'deepseek-v4-flash': { input: 1.5, cacheRead: 0.05, output: 4.5 },
+    'deepseek-flash': { input: 1.5, cacheRead: 0.05, output: 4.5 },
   }
   const state = fold([
     stepStart(1, 1, 0, seq()),
     message(1, 1, 'deepseek-v4-flash-vision-exp', { inputTokens: 1_000_000, outputTokens: 0 }, 1_000, seq()),
+    message(1, 2, 'deepseek-v4-flash', { inputTokens: 1_000_000, outputTokens: 0 }, 2_000, seq()),
   ])
   const view = receiptView(state, custom, '¥')
-  const row = view.models[0]!
-  assert.equal(row.model, 'deepseek-v4-flash-vision-exp')
-  assert.equal(row.priced, true)
-  assert.equal(row.cost, 1.5) // 沿用 flash 的 input 单价 1.5
+  const vision = view.models.find(r => r.model === 'deepseek-v4-flash-vision-exp')!
+  const legacy = view.models.find(r => r.model === 'deepseek-v4-flash')!
+  assert.equal(vision.priced, true)
+  assert.equal(vision.cost, 1.5) // 沿用 deepseek-flash 的 input 单价 1.5
+  assert.equal(legacy.priced, true)
+  assert.equal(legacy.cost, 1.5)
   assert.equal(view.priced, true)
-  assert.equal(view.totals.cost, 1.5)
+  assert.equal(view.totals.cost, 3) // 两个 step 各 1M 输入
 
-  // 直接配置 vision-exp 时优先于别名（不被别名覆盖）。
+  // 直接配置旧名时优先于别名（不被别名覆盖）。
   const direct: PricingTable = {
-    'deepseek-v4-flash': { input: 1.5, output: 4.5 },
+    'deepseek-flash': { input: 1.5, output: 4.5 },
     'deepseek-v4-flash-vision-exp': { input: 3, output: 9 },
   }
   const view2 = receiptView(fold([
@@ -308,6 +311,28 @@ const seq = (() => { let n = 0; return () => n++ })()
     assert.ok(Math.abs(row.cost - 0.0006) < 1e-12, '周末按谷底单价计费')
     assert.equal(view.totals.peakCost, 0)
   }
+}
+
+// ---- 14. 内置默认价：当前在售型号可计价，已下线旧名经别名沿用 ----
+{
+  const state = fold([
+    stepStart(1, 1, 0, seq()),
+    // 1970-01-01 08:00 北京时间：工作日但不在高峰窗口内 → 按谷底单价。
+    message(1, 1, 'deepseek-flash', { inputTokens: 1_000_000, outputTokens: 500_000 }, 1_000, seq()),
+    message(1, 2, 'deepseek-v4-flash', { inputTokens: 1_000_000, outputTokens: 0 }, 2_000, seq()),
+    message(1, 3, 'deepseek-v4-pro', { inputTokens: 1_000_000, outputTokens: 0 }, 3_000, seq()),
+  ])
+  const view = receiptView(state, DEFAULT_PRICING, '¥')
+  const flash = view.models.find(r => r.model === 'deepseek-flash')!
+  const legacyFlash = view.models.find(r => r.model === 'deepseek-v4-flash')!
+  const pro = view.models.find(r => r.model === 'deepseek-v4-pro')!
+  assert.equal(flash.priced, true)
+  assert.equal(flash.cost, 3) // 1M 输入 ×1 + 0.5M 输出 ×4
+  assert.equal(legacyFlash.priced, true)
+  assert.equal(legacyFlash.cost, 1) // 旧名经 PRICING_ALIASES 沿用 deepseek-flash 单价
+  assert.equal(pro.priced, true)
+  assert.equal(pro.cost, 4.5)
+  assert.equal(view.totals.peakCost, 0)
 }
 
 console.log('verify-projection: 全部断言通过 ✓')

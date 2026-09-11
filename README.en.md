@@ -102,10 +102,12 @@ and commit `lib/` before publishing.
 
 ## Configuration (pricing)
 
-By default the plugin only bundles DeepSeek's long-term public classic model
-prices; other models show "unpriced" and cost 0. **Configure prices to match
-your actual bill**: override `config` (a full-section replacement) on the
-`dsh-receipt` row in the profile's `cordis.patch.yml`:
+The plugin bundles DeepSeek's published **off-peak (trough) prices** for the
+current lineup — `deepseek-flash` (V4.1-Flash) and `deepseek-v4-pro`, plus the
+historical classic models; anything else shows "unpriced" and costs 0. Time-of-day
+(peak/off-peak) billing is folded automatically from each sample's time (next
+section). To override a default, replace `config` (a full-section replacement) on
+the `dsh-receipt` row in the profile's `cordis.patch.yml`:
 
 ```yaml
 # In your profile's cordis.patch.yml (e.g. <DSH_HOME>/profiles/web/cordis.patch.yml)
@@ -113,49 +115,57 @@ your actual bill**: override `config` (a full-section replacement) on the
   config:
     currency: ¥
     pricing:
-      deepseek-chat: { input: 2, cacheRead: 0.5, output: 8 }        # currency per 1M tokens
-      deepseek-reasoner: { input: 4, cacheRead: 1, output: 16 }
-      deepseek-v4-flash: { input: 1.5, cacheRead: 0.05, output: 4.5 }   # DeepSeek-V4 off-peak
-      deepseek-official/deepseek-v4-pro: { input: 4.5, cacheRead: 0.15, output: 13.5 }
-      # deepseek-v4-flash-vision-exp shares the price of deepseek-v4-flash above; no need to add it.
+      # The three entries below are built in; shown here as override examples.
+      # Unit: currency per 1M tokens, quoting the off-peak (trough) price.
+      deepseek-flash: { input: 1, cacheRead: 0.02, output: 4 }
+      deepseek-v4-pro: { input: 4.5, cacheRead: 0.15, output: 13.5 }
+      deepseek-chat: { input: 2, cacheRead: 0.5, output: 8 }
 ```
 
 - Price unit: **currency amount per 1M tokens**; fields: `input` / `cacheRead` /
   `cacheWrite` / `output` / `reasoning`, missing ones count as 0.
 - Key precedence: exact model id, then `provider/model` composite key, then the
   **same-price alias** base model (no cross-provider merge is performed).
-- **Same-price alias**: `deepseek-v4-flash-vision-exp` shares the price of
-  `deepseek-v4-flash` via the built-in `PRICING_ALIASES` mapping; configuring
-  `deepseek-v4-flash` automatically applies to vision-exp (if you configure
-  vision-exp separately, its own price wins).
+- **Same-price alias**: the retired names `deepseek-v4-flash` and
+  `deepseek-v4-flash-vision-exp` are still callable and are served by
+  DeepSeek-V4.1-Flash at Flash prices, so the built-in `PRICING_ALIASES` maps both
+  to `deepseek-flash` (configure a retired name separately and its own price wins).
 - `currency` only affects the displayed symbol; config changes take effect
   **immediately** via the profile config HMR, no restart needed.
 
-### DeepSeek-V4 peak/off-peak pricing notes (official pricing page)
+### Time-of-day (peak/off-peak) pricing notes (official pricing page)
 
-DeepSeek-V4 uses **time-of-day pricing**. The official
+Current DeepSeek models use **time-of-day pricing**. The official
 [Models & Pricing](https://api-docs.deepseek.com/quick_start/pricing/) page
-footnote (1) defines:
+footnote (3) defines:
 
 - **Peak hours**: Beijing time **Mon–Fri** 9:00–12:00 and 14:00–18:00
   (two windows).
 - **Off-peak**: any time outside those windows, **including all day Sat & Sun**.
-- The off-peak price is **half** the peak price (i.e. peak = off-peak × 2).
+- The off-peak price is **half** the peak price (peak = off-peak × 2, matching the
+  built-in `peakMultiplier: 2`).
 
 | Model | Window | Input (cache miss) | Input (cache hit) | Output |
 |---|---|---|---|---|
-| deepseek-v4-flash | Off-peak (incl. weekends all day) | ¥1.5 | ¥0.05 | ¥4.5 |
-| deepseek-v4-flash | Weekday peak 9:00–12:00, 14:00–18:00 | ¥3.0 | ¥0.10 | ¥9.0 |
-| deepseek-v4-pro | Off-peak (incl. weekends all day) | ¥4.5 | ¥0.15 | ¥13.5 |
-| deepseek-v4-pro | Weekday peak 9:00–12:00, 14:00–18:00 | ¥9.0 | ¥0.30 | ¥27.0 |
-| deepseek-v4-flash-vision-exp | Off-peak (incl. weekends all day) | ¥1.5 | ¥0.05 | ¥4.5 |
-| deepseek-v4-flash-vision-exp | Weekday peak 9:00–12:00, 14:00–18:00 | ¥3.0 | ¥0.10 | ¥9.0 |
+| `deepseek-flash` (V4.1-Flash) | Off-peak (incl. weekends all day) | ¥1 | ¥0.02 | ¥4 |
+| `deepseek-flash` | Weekday peak 9:00–12:00, 14:00–18:00 | ¥2.0 | ¥0.04 | ¥8.0 |
+| `deepseek-v4-pro` (V4-Pro-0813) | Off-peak (incl. weekends all day) | ¥4.5 | ¥0.15 | ¥13.5 |
+| `deepseek-v4-pro` | Weekday peak 9:00–12:00, 14:00–18:00 | ¥9.0 | ¥0.30 | ¥27.0 |
 
-The receipt currently bills at a **single price** (we recommend configuring the
-off-peak price, which covers weekend all day and weekday off-peak hours); the
-actual weekday peak-hour cost is ~2x the receipt amount, while weekends match
-the receipt amount exactly. Precise time-of-day billing could be added in a
-later version (folding by step timestamp, distinguishing weekday from weekend).
+The receipt folds peak/off-peak from each step sample's timestamp: the built-in
+prices are the **off-peak** ones, samples inside a weekday peak window are charged
+`peakMultiplier` (default 2), and weekends are always off-peak. The receipt amount
+is therefore already time-of-day accurate — no manual doubling. Change the windows
+or the multiplier through `peakHours` / `peakMultiplier`.
+
+**Naming and retirement notes (official footnotes 1 and 2)**: use `deepseek-flash`
+as the model name; the retired names `deepseek-v4-flash` and
+`deepseek-v4-flash-vision-exp` are still callable but are served by V4.1-Flash at
+Flash prices (aliases built in). From **2026-09-14 12:00 Beijing time** until V4.1
+Pro ships, every `deepseek-v4-pro` request is routed to V4.1-Flash and billed at
+**Flash prices** — after that date the real bill will be lower than a receipt
+computed at V4-Pro rates, so either change that entry to the Flash price or drop it
+and let the built-in alias apply.
 
 ## Verification
 
