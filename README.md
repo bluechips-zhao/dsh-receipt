@@ -2,15 +2,16 @@
 
 # dsh-receipt — 会话消费小票插件
 
-为 DeepSeek Harness Web GUI 增加"小票"：在每个会话的头部栏放一个小票按钮，
-点击弹出该会话的消费小票（收据样式），展示：
-<img width="768" height="203" alt="image" src="https://github.com/user-attachments/assets/eeb3f912-a476-43bf-bc30-1001fafc8f06" />
+为 DeepSeek Harness Web GUI 增加“小票”按钮，点击后打开会话用量面板：
 
-- **按模型明细**：模型名称、调用次数、输入 / 缓存读 / 缓存写 / 输出 / 推理 token、小计费用；
-- **合计**：调用次数、token 合计、模型耗时、会话跨度；
-- **金额**：按模型定价表折算的费用（默认 ¥，货币符号可配置）；
-- **出票时间**：最后一条计入事件的时间。
-<img width="772" height="811" alt="image" src="https://github.com/user-attachments/assets/1594b007-0a9a-481b-83bc-76b03c70845b" />
+- **概览**：预估费用、模型调用、token 总量、缓存命中率、平均每次费用；
+- **费用与用量分布**：四色 token 结构、最多五个模型的费用占比、模型耗时和会话跨度；
+- **逐模型明细**：展开查看调用次数、各类 token 和已计算费用；推理 token 已含在输出中；
+- **实用操作**：复制文本摘要，键盘与窄屏可用，适配深浅主题和减少动画设置。
+
+缓存命中率按 `缓存命中输入 / (普通输入 + 缓存命中输入)` 计算。缺少单价时，面板显示
+“已知部分费用”和可计算的模型小计，不把未计价用量误写成完整费用。金额默认以 ¥ 展示，
+货币符号可配置；最后更新时间是最近一条计入事件的时间。
 
 数据由 host 端 `receipt` 会话投影单元从会话日志折叠（复用 `assistant/message`
 的 usage 与模型来源），随 `session/projection` 帧实时刷新；界面只负责展示，
@@ -45,7 +46,8 @@ pnpm dsh plugin --profile web add github:bluechips-zhao/dsh-receipt
 ## 依赖、权限与兼容性
 
 - **外部依赖**：无外部服务、无网络请求、无命令执行。运行期只读 host 侧的
-  `receipt` 投影与 `useSessions` 行数据；依赖全部走 peer / profile fallback
+  `receipt` 投影与 `useSessions` 行数据，复制摘要只在用户点击后写入浏览器剪贴板；
+  依赖全部走 peer / profile fallback
   （`$DSH_HOME/profiles/node_modules`），不复制 Cordis / React / schemastery
   的运行时身份。
 - **权限**：运行时代码（`lib/index.js`、`lib/client.js`）只注册一个投影单元与两个
@@ -149,7 +151,8 @@ DeepSeek 现行模型采用**分时计价**。官方[模型 & 价格](https://ap
 
 已在隔离的 `dsh-v0.1.7-rc.2` 环境中完成 `pnpm test`、`pnpm typecheck`、
 `pnpm build`、profile 插件安装、`--dump-config` 组合与 Web 宿主启动。
-HTTP 未携带该隔离环境的访问令牌时返回预期的 `401`。尚未验证浏览器内的小票按钮、
+HTTP 未携带该隔离环境的访问令牌时返回预期的 `401`。新版面板已用演示投影数据做
+深色主题与窄屏视觉检查，并完成类型检查与构建；尚未验证 DSH 浏览器内的小票按钮、
 真实 provider 事件与实际账单一致性。
 
 ```sh

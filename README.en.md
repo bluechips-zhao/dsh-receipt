@@ -2,18 +2,18 @@
 
 # dsh-receipt — Conversation usage receipt plugin
 
-Adds a "receipt" to the DeepSeek Harness Web GUI: a receipt button in each
-conversation's header bar. Clicking it opens that conversation's usage receipt
-(receipt-style) showing:
-<img width="768" height="203" alt="image" src="https://github.com/user-attachments/assets/4755029b-18d6-4faa-b4f3-b2c14970ca48" />
+Adds a receipt button to the DeepSeek Harness Web GUI. Its conversation panel shows:
 
-- **Per-model breakdown**: model name, call count, input / cache-read /
-  cache-write / output / reasoning tokens, subtotal cost;
-- **Totals**: call count, total tokens, model time, conversation span;
-- **Cost**: amortized from the model pricing table (default ¥, currency symbol
-  is configurable);
-- **Printed-at**: the timestamp of the last event that was counted.
-<img width="772" height="811" alt="image" src="https://github.com/user-attachments/assets/87c1d5e1-3b21-4d9b-bf52-28852f51eef3" />
+- **Overview**: estimated cost, model calls, total tokens, cache hit rate, and average cost per call;
+- **Cost and usage mix**: four token buckets, cost shares for up to five models, model time, and conversation span;
+- **Per-model details**: expandable call count, token buckets, and calculable cost; reasoning tokens are included in output;
+- **Useful controls**: copy a text summary, keyboard and narrow-screen support, light/dark themes, and reduced motion.
+
+Cache hit rate is `cached input / (regular input + cached input)`. When rates are
+missing, the panel labels the total as the "known portion of cost" and shows
+calculable model subtotals rather than implying that all usage is priced. The
+default currency symbol is ¥ and can be configured. The update time is the last
+counted event's timestamp.
 
 The data is folded from the session log by a host-side `receipt` projection
 unit (reusing `assistant/message` usage and model attribution) and refreshed in
@@ -54,7 +54,8 @@ DeepSeek).
 
 - **External dependencies**: no external service, no network request, no command
   execution. At runtime the plugin only reads the host-side `receipt` projection and
-  `useSessions` row data; every dependency goes through peer / profile fallback
+  `useSessions` row data. Copy summary writes to the browser clipboard only after
+  a user click. Every dependency goes through peer / profile fallback
   (`$DSH_HOME/profiles/node_modules`) and never duplicates the Cordis / React /
   schemastery runtime identity.
 - **Permissions**: the runtime code (`lib/index.js`, `lib/client.js`) registers one
@@ -185,9 +186,11 @@ pricing page when prices change.
 Verified in an isolated `dsh-v0.1.7-rc.2` environment: `pnpm test`,
 `pnpm typecheck`, `pnpm build`, profile plugin installation,
 `--dump-config` composition, and Web host startup. An HTTP request without
-that isolated host's access token returned the expected `401`. The browser
-receipt action, real provider events, and agreement with actual bills have not
-been verified.
+that isolated host's access token returned the expected `401`. The redesigned
+panel has been visually checked with synthetic projection data in a dark,
+narrow viewport, and its type check and build pass. The DSH browser receipt
+action, real provider events, and agreement with actual bills have not been
+verified.
 
 ```sh
 # Projection/folding logic unit assertions
