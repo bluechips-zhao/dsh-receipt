@@ -246,8 +246,7 @@ function beijingHour(time: number): number {
 
 /**
  * 北京时间星期几（0=周日 … 6=周六）。用 UTC 日偏移 +8h 得到，避免夏令时歧义。
- * DeepSeek-V4 官方规则（2026-08-23 起）：周末（周六、周日）全天不分峰谷，
- * 统一按谷底（空闲）价计费，因此只有工作日才存在高峰时段。
+ * 官方峰谷规则：周末全天按空闲价；法定节假日由 offPeakDates 显式提供。
  */
 function beijingWeekday(time: number): number {
   // 北京时间比 UTC 早 8 小时：把时间推进 8h 再取 UTC 星期，得到正确的北京星期。
@@ -262,15 +261,17 @@ function isWeekday(time: number): boolean {
 
 /**
  * 样本时间是否落在任一高峰窗口（半开区间 [start, end)）。
- * 仅工作日判定高峰；周末（周六、周日）全天视为谷底，恒不命中。
+ * 仅工作日且不在 offPeakDates 中判定高峰；周末全天视为谷底。
  */
-function isPeak(time: number, windows: readonly ReceiptPeakWindow[]): boolean {
+function isPeak(time: number, windows: readonly ReceiptPeakWindow[], offPeakDates: ReadonlySet<string>): boolean {
   if (!isWeekday(time)) return false
+  const beijingDate = new Date(time + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  if (offPeakDates.has(beijingDate)) return false
   const hour = beijingHour(time)
   return windows.some(window => hour >= window.start && hour < window.end)
 }
 
-/** 默认高峰窗口（DeepSeek-V4 官方：北京时间 9:00-12:00、14:00-18:00，仅工作日）。 */
+/** 默认高峰窗口（北京时间 9:00-12:00、14:00-18:00，仅非节假日工作日）。 */
 export const DEFAULT_PEAK_HOURS: readonly ReceiptPeakWindow[] = [
   { start: 9, end: 12 },
   { start: 14, end: 18 },
@@ -278,15 +279,17 @@ export const DEFAULT_PEAK_HOURS: readonly ReceiptPeakWindow[] = [
 
 /** 峰谷计价选项（缺省即 DeepSeek-V4 官方方案）。 */
 export interface PeakPricingOptions {
-  /** 高峰时段窗口（北京时间小时，仅工作日生效；周末全天谷底）。 */
+  /** 高峰时段窗口（北京时间小时，仅非节假日工作日生效）。 */
   peakHours?: readonly ReceiptPeakWindow[]
   /** 高峰单价倍率（官方为 2）。 */
   peakMultiplier?: number
+  /** 北京时间日期（YYYY-MM-DD），全天按空闲价；用于法定节假日等例外。 */
+  offPeakDates?: readonly string[]
 }
 
 /**
  * 单元 view：state → wire 值。费用按注册时捕获的定价表现算，**逐 step
- * 按样本时间判断峰谷**（工作日高峰时段单价 × peakMultiplier；周末全天谷底）。
+ * 按样本时间判断峰谷**（非节假日工作日高峰时段单价 × peakMultiplier）。
  * 模型 id 优先精确
  * 匹配，其次 `provider/model` 复合键，再次别名基准模型（见 resolvePricing）。
  * 成本不落 state（改价即生效，无需重放）。
@@ -299,6 +302,7 @@ export function receiptView(
 ): ReceiptProjection {
   const peakHours = options.peakHours ?? DEFAULT_PEAK_HOURS
   const peakMultiplier = options.peakMultiplier ?? 2
+  const offPeakDates = new Set(options.offPeakDates ?? [])
 
   // 一次遍历 steps，按模型归因累计峰谷成本（未知模型与未计价模型跳过）。
   const costByModel = new Map<string, { cost: number; peakCost: number; complete: boolean }>()
@@ -308,7 +312,7 @@ export function receiptView(
     if (entry === undefined) continue
     const key = modelKey(sample.provider, sample.model)
     const base = priceOf(sample, entry)
-    const peak = isPeak(sample.time, peakHours) && peakMultiplier !== 1
+    const peak = isPeak(sample.time, peakHours, offPeakDates) && peakMultiplier !== 1
     const accrued = costByModel.get(key) ?? { cost: 0, peakCost: 0, complete: true }
     accrued.complete &&= !hasUnpricedTokens(sample, entry)
     if (peak) {

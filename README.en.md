@@ -118,6 +118,8 @@ the `dsh-receipt` row in the profile's `cordis.patch.yml`:
       # Unit: currency per 1M tokens, quoting the off-peak (trough) price.
       deepseek-flash: { input: 1, cacheRead: 0.02, output: 4 }
       deepseek-v4-pro: { input: 4.5, cacheRead: 0.15, output: 13.5 }
+    # Maintain from the official holiday calendar; these Beijing dates are off-peak all day.
+    offPeakDates: ['2026-10-01']
 ```
 
 - Price unit: **currency amount per 1M tokens**; fields: `input` / `cacheRead` /
@@ -144,35 +146,37 @@ the `dsh-receipt` row in the profile's `cordis.patch.yml`:
 
 Current DeepSeek models use **time-of-day pricing**. The official
 [Models & Pricing](https://api-docs.deepseek.com/quick_start/pricing/) page
-footnote (3) defines:
+footnote (2) defines:
 
-- **Peak hours**: Beijing time **Mon–Fri** 9:00–12:00 and 14:00–18:00
-  (two windows).
-- **Off-peak**: any time outside those windows, **including all day Sat & Sun**.
+- **Peak hours**: Beijing time **Mon–Fri, excluding Chinese statutory holidays**,
+  9:00–12:00 and 14:00–18:00.
+- **Off-peak**: outside those windows, **including weekends and Chinese statutory holidays**.
 - The off-peak price is **half** the peak price (peak = off-peak × 2, matching the
   built-in `peakMultiplier: 2`).
 
 | Model | Window | Input (cache miss) | Input (cache hit) | Output |
 |---|---|---|---|---|
-| `deepseek-flash` (V4.1-Flash) | Off-peak (incl. weekends all day) | ¥1 | ¥0.02 | ¥4 |
-| `deepseek-flash` | Weekday peak 9:00–12:00, 14:00–18:00 | ¥2.0 | ¥0.04 | ¥8.0 |
-| `deepseek-v4-pro` (V4-Pro-0813) | Off-peak (incl. weekends all day) | ¥4.5 | ¥0.15 | ¥13.5 |
-| `deepseek-v4-pro` | Weekday peak 9:00–12:00, 14:00–18:00 | ¥9.0 | ¥0.30 | ¥27.0 |
+| `deepseek-flash` (V4.1-Flash) | Off-peak (incl. weekends and holidays) | ¥1 | ¥0.02 | ¥4 |
+| `deepseek-flash` | Non-holiday weekday peak 9:00–12:00, 14:00–18:00 | ¥2.0 | ¥0.04 | ¥8.0 |
+| `deepseek-v4-pro` (V4-Pro-0813) | Off-peak (incl. weekends and holidays) | ¥4.5 | ¥0.15 | ¥13.5 |
+| `deepseek-v4-pro` | Non-holiday weekday peak 9:00–12:00, 14:00–18:00 | ¥9.0 | ¥0.30 | ¥27.0 |
 
 The receipt folds peak/off-peak from each step sample's timestamp: the built-in
-prices are the **off-peak** ones, samples inside a weekday peak window are charged
-`peakMultiplier` (default 2), and weekends are always off-peak. No manual doubling
-is needed. Change the windows or multiplier through `peakHours` / `peakMultiplier`.
+prices are the **off-peak** ones; samples inside a weekday peak window are charged
+`peakMultiplier` (default 2), and weekends are always off-peak. **Statutory holidays
+are not updated automatically**: put Beijing dates (`YYYY-MM-DD`) in `offPeakDates`
+from the official holiday schedule, or those dates may be overestimated. No manual
+doubling is needed. Change the windows or multiplier through `peakHours` / `peakMultiplier`.
 The plugin approximates billing time with the committed `assistant/message` time
 and cannot include calls that did not land in the session; the amount remains an
 estimate, and the provider bill is authoritative.
 
-**Naming and retirement notes (official footnotes 1 and 2)**: use `deepseek-flash`
+**Naming and retirement notes (official footnote 1)**: use `deepseek-flash`
 as the model name; the retired names `deepseek-v4-flash` and
 `deepseek-v4-flash-vision-exp` are still callable but are served by V4.1-Flash at
-Flash prices (aliases built in). DeepSeek now says V4 Pro API service continues
-after **2026-09-14** with unchanged billing, so the plugin retains a separate
-`deepseek-v4-pro` price. Recheck the official pricing page when prices change.
+Flash prices (aliases built in). The current official table separately lists
+`deepseek-v4-pro`, so the plugin retains its own price. Recheck the official
+pricing page when prices change.
 
 ## Verification
 

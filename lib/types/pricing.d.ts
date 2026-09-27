@@ -40,7 +40,7 @@ export declare function resolvePricing(pricing: PricingTable, provider: string, 
 /**
  * 内置默认定价（DeepSeek 官方定价页，2026-09-27 核对，¥/1M tokens）。
  *
- * 分时计价的模型按**空闲（谷底）时段单价**内置：折叠时对落在工作日高峰窗口的
+ * 分时计价的模型按**空闲（谷底）时段单价**内置：折叠时对落在非节假日工作日高峰窗口的
  * 样本乘 `peakMultiplier`（官方为 2），故此处只写谷底价（官方：空闲 = 高峰的一半）。
  */
 export declare const DEFAULT_PRICING: PricingTable;

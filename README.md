@@ -99,6 +99,8 @@ pnpm run build      # tsc host + client 类型检查与产物，tsdown 出 lib/i
       # 下列两项已内置，此处仅作覆盖示例；单位 ¥/1M tokens，写空闲时段价
       deepseek-flash: { input: 1, cacheRead: 0.02, output: 4 }
       deepseek-v4-pro: { input: 4.5, cacheRead: 0.15, output: 13.5 }
+    # 依据官方节假日安排维护；这些北京时间日期全天按空闲价
+    offPeakDates: ['2026-10-01']
 ```
 
 - 单价单位：**每 1M token 的货币额**；字段：`input` / `cacheRead` / `cacheWrite`
@@ -117,28 +119,29 @@ pnpm run build      # tsc host + client 类型检查与产物，tsdown 出 lib/i
 
 ### 分时（峰谷）定价说明（官方定价页）
 
-DeepSeek 现行模型采用**分时计价**。官方[模型 & 价格](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)页脚注(3) 定义：
+DeepSeek 现行模型采用**分时计价**。官方[模型 & 价格](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)页脚注(2) 定义：
 
-- **高峰时段**：北京时间**周一至周五** 9:00–12:00、14:00–18:00（共两个窗口）。
-- **空闲时段**：上述高峰窗口之外的时间，**含周六、周日全天**。
+- **高峰时段**：北京时间**周一至周五且非中国法定节假日** 9:00–12:00、14:00–18:00。
+- **空闲时段**：上述高峰窗口之外的时间，**含周末与中国法定节假日全天**。
 - 空闲时段价格为高峰时段价格的**一半**（即高峰 = 空闲 ×2，对应内置 `peakMultiplier: 2`）。
 
 | 模型 | 时段 | 输入(缓存未命中) | 输入(缓存命中) | 输出 |
 |---|---|---|---|---|
-| `deepseek-flash`（V4.1-Flash） | 空闲（含周末全天） | ¥1 | ¥0.02 | ¥4 |
-| `deepseek-flash` | 工作日高峰 9:00–12:00、14:00–18:00 | ¥2.0 | ¥0.04 | ¥8.0 |
-| `deepseek-v4-pro`（V4-Pro-0813） | 空闲（含周末全天） | ¥4.5 | ¥0.15 | ¥13.5 |
-| `deepseek-v4-pro` | 工作日高峰 9:00–12:00、14:00–18:00 | ¥9.0 | ¥0.30 | ¥27.0 |
+| `deepseek-flash`（V4.1-Flash） | 空闲（含周末、法定节假日全天） | ¥1 | ¥0.02 | ¥4 |
+| `deepseek-flash` | 非节假日工作日高峰 9:00–12:00、14:00–18:00 | ¥2.0 | ¥0.04 | ¥8.0 |
+| `deepseek-v4-pro`（V4-Pro-0813） | 空闲（含周末、法定节假日全天） | ¥4.5 | ¥0.15 | ¥13.5 |
+| `deepseek-v4-pro` | 非节假日工作日高峰 9:00–12:00、14:00–18:00 | ¥9.0 | ¥0.30 | ¥27.0 |
 
 小票按 step 样本时间折叠峰谷：内置默认价写的是**空闲时段价**，落在工作日高峰窗口的样本
-按 `peakMultiplier`（默认 2）计，周末全天按谷底价计。小票无需再手动乘 2；
+按 `peakMultiplier`（默认 2）计，周末全天按谷底价计。**法定节假日不会自动更新**；
+请按官方安排在 `offPeakDates` 配置北京时间日期（`YYYY-MM-DD`），否则这些日期可能被高估。
 要改窗口或倍率，配置 `peakHours` / `peakMultiplier` 即可。插件使用 `assistant/message`
 的落地时间近似计费时间，也无法覆盖未落地的调用；金额始终是本地估算，以实际账单为准。
 
-**命名与下线提醒（官方定价页脚注 1、2）**：新模型名请用 `deepseek-flash`；旧名
+**命名与下线提醒（官方定价页脚注 1）**：新模型名请用 `deepseek-flash`；旧名
 `deepseek-v4-flash`、`deepseek-v4-flash-vision-exp` 仍可调用，但由 V4.1-Flash 提供服务
-并按 Flash 价计费（已内置别名）。官方现称 **2026-09-14 后继续提供 V4 Pro API，计费方式不变**；
-本插件据此保留 `deepseek-v4-pro` 的独立价格。价格可能变动，请以官方定价页为准。
+并按 Flash 价计费（已内置别名）。当前官方定价表单列 `deepseek-v4-pro`，
+本插件据此保留其独立价格。价格可能变动，请以官方定价页为准。
 
 ## 验证
 

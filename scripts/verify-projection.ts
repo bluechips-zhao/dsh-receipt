@@ -302,7 +302,7 @@ const TEST_LEGACY_PRICING: PricingTable = {
   assert.equal(view2.models[0]!.cost, 3)
 }
 
-// ---- 13. 周末全天谷底：周六/周日即使落在高峰窗口时段也不计高峰（2026-08-23 官方规则）----
+// ---- 13. 周末全天谷底：周六/周日即使落在高峰窗口时段也不计高峰 ----
 {
   // 1970-01-03 是周六。UTC 02:00 = 北京时间 10:00（默认高峰窗口内），但周末仍应按谷底计。
   const SATURDAY_BEIJING_PEAK_TS = 2 * 86_400_000 + 2 * 3_600_000 + 0
@@ -373,6 +373,19 @@ const TEST_LEGACY_PRICING: PricingTable = {
   }
   const view = receiptView(state, pricing, '¥')
   assert.equal(view.totals.cost, 7) // 输入 2 + 普通输出 0.75×4 + 推理 0.25×8
+}
+
+// ---- 17. 官方法定节假日按空闲价；北京时间日期由配置显式提供 ----
+{
+  const time = Date.UTC(2026, 9, 1, 2) // 北京时间 2026-10-01 10:00，周四
+  const state = fold([
+    stepStart(1, 1, time, seq()),
+    message(1, 1, 'deepseek-flash', { inputTokens: 1_000_000, outputTokens: 0 }, time + 100, seq()),
+  ])
+  assert.equal(receiptView(state, DEFAULT_PRICING, '¥').totals.cost, 2)
+  const holiday = receiptView(state, DEFAULT_PRICING, '¥', { offPeakDates: ['2026-10-01'] })
+  assert.equal(holiday.totals.cost, 1)
+  assert.equal(holiday.totals.peakCost, 0)
 }
 
 console.log('verify-projection: 全部断言通过 ✓')

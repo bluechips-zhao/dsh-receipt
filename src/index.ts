@@ -42,10 +42,12 @@ export interface Config {
   currency: string
   /** 单价表（空闲时段基准价）：每 1M token 的价格，按模型 id 或 `provider/model` 键控。 */
   pricing: Record<string, PricingEntry>
-  /** 高峰时段窗口（北京时间小时，半开区间 [start,end)）；默认 9-12、14-18，仅工作日生效，周末全天谷底。 */
+  /** 高峰时段窗口（北京时间小时，半开区间 [start,end)）；默认 9-12、14-18，节假日按 offPeakDates 排除。 */
   peakHours: ReceiptPeakWindow[]
   /** 高峰单价倍率；默认 2（DeepSeek-V4 官方峰谷方案）。 */
   peakMultiplier: number
+  /** 额外按空闲价计算的北京时间日期，如中国法定节假日；格式 YYYY-MM-DD。 */
+  offPeakDates: string[]
 }
 
 // schemastery 的 object 字段默认可选、输出类型与实际 value 形状有出入，
@@ -59,6 +61,7 @@ export const Config = z.object({
     { start: 14, end: 18 },
   ]),
   peakMultiplier: z.number().min(1).default(2),
+  offPeakDates: z.array(z.string()).default([]),
 }) as unknown as z<Config>
 
 /** 投影 registry 是本插件的全部意义；没有它 fiber 保持 pending。 */
@@ -75,5 +78,6 @@ export function apply(ctx: Context, config: Config): void {
   ctx.sessionProjections.register(receiptProjectionDefinition(pricing, config.currency, {
     peakHours: config.peakHours,
     peakMultiplier: config.peakMultiplier,
+    offPeakDates: config.offPeakDates,
   }))
 }
