@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { IconDataOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconDataOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only：拉入 conversation 会话 slot 的 SlotMap 合并（header.actions 契约）。
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
@@ -24,7 +24,7 @@ export function ReceiptAction({ sessionId, t }: ReceiptActionProps): ReactElemen
       title={t('action.aria')}
       onClick={() => receiptUi.toggle(sessionId)}
     >
-      <IconDataOutline16 />
+      <IconDataOutlineRegular size={16} />
       <span className={css.label}>{t('action.label')}</span>
     </button>
   )

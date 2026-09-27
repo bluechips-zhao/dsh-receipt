@@ -7,5 +7,5 @@ export type ReceiptOverlayProps = PropsRuntime<'shell.overlay'> & PropsLocale<ty
  * 关闭时返回 null，不占任何布局。
  * @param props - root kit + locale seat。
  */
-export declare function ReceiptOverlay({ useSessions, t }: ReceiptOverlayProps): import("react").JSX.Element | null;
+export declare function ReceiptOverlay({ useSessions, t }: ReceiptOverlayProps): import("react/jsx-runtime").JSX.Element | null;
 //# sourceMappingURL=ReceiptOverlay.d.ts.map

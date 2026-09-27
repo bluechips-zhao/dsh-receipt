@@ -217,13 +217,26 @@ export function applyReceipt(state: ReceiptState, event: SessionEvent): ReceiptS
 }
 
 function priceOf(counts: ReceiptTokenCounts, entry: PricingEntry): number {
+  // DSH 的 reasoningTokens 是 outputTokens 的子集。只有显式设置独立推理价时
+  // 才拆分输出桶；默认 DeepSeek 价格只按 outputTokens 计一次。
+  const reasoning = entry.reasoning === undefined ? 0 : Math.min(counts.reasoningTokens, counts.outputTokens)
   return (
     counts.inputTokens / 1_000_000 * (entry.input ?? 0)
     + counts.cacheReadTokens / 1_000_000 * (entry.cacheRead ?? 0)
     + counts.cacheWriteTokens / 1_000_000 * (entry.cacheWrite ?? 0)
-    + counts.outputTokens / 1_000_000 * (entry.output ?? 0)
-    + counts.reasoningTokens / 1_000_000 * (entry.reasoning ?? 0)
+    + (counts.outputTokens - reasoning) / 1_000_000 * (entry.output ?? 0)
+    + reasoning / 1_000_000 * (entry.reasoning ?? 0)
   )
+}
+
+/** 有用量的桶缺少单价时，不能把部分费用标为完整计价。 */
+function hasUnpricedTokens(counts: ReceiptTokenCounts, entry: PricingEntry): boolean {
+  const reasoning = entry.reasoning === undefined ? 0 : Math.min(counts.reasoningTokens, counts.outputTokens)
+  return (counts.inputTokens > 0 && entry.input === undefined)
+    || (counts.cacheReadTokens > 0 && entry.cacheRead === undefined)
+    || (counts.cacheWriteTokens > 0 && entry.cacheWrite === undefined)
+    || (counts.outputTokens - reasoning > 0 && entry.output === undefined)
+    || (reasoning > 0 && entry.reasoning === undefined)
 }
 
 /** 北京时间小时（Asia/Shanghai 无夏令时，UTC+8 恒定）。 */
@@ -288,7 +301,7 @@ export function receiptView(
   const peakMultiplier = options.peakMultiplier ?? 2
 
   // 一次遍历 steps，按模型归因累计峰谷成本（未知模型与未计价模型跳过）。
-  const costByModel = new Map<string, { cost: number; peakCost: number }>()
+  const costByModel = new Map<string, { cost: number; peakCost: number; complete: boolean }>()
   for (const sample of Object.values(state.steps)) {
     if (sample.provider === null || sample.model === null) continue
     const entry = resolvePricing(pricing, sample.provider, sample.model)
@@ -296,7 +309,8 @@ export function receiptView(
     const key = modelKey(sample.provider, sample.model)
     const base = priceOf(sample, entry)
     const peak = isPeak(sample.time, peakHours) && peakMultiplier !== 1
-    const accrued = costByModel.get(key) ?? { cost: 0, peakCost: 0 }
+    const accrued = costByModel.get(key) ?? { cost: 0, peakCost: 0, complete: true }
+    accrued.complete &&= !hasUnpricedTokens(sample, entry)
     if (peak) {
       accrued.cost += base * peakMultiplier
       accrued.peakCost += base * (peakMultiplier - 1)
@@ -338,7 +352,7 @@ export function receiptView(
         reasoningTokens: bucket.reasoningTokens,
         cost: accrued.cost,
         peakCost: accrued.peakCost,
-        priced: true,
+        priced: accrued.complete,
       }
     })
   // 费用降序，未计价（费用 0）排最后；费用相同时调用次数多者在前。

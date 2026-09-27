@@ -52,13 +52,20 @@ function fold(events: SessionEvent[]): ReceiptState {
 
 const seq = (() => { let n = 0; return () => n++ })()
 
+// 历史型号仅供折叠回归验证；官方当前定价页不再列出，运行时默认不计价。
+const TEST_LEGACY_PRICING: PricingTable = {
+  ...DEFAULT_PRICING,
+  'deepseek-chat': { input: 2, cacheRead: 0.5, output: 8 },
+  'deepseek-reasoner': { input: 4, cacheRead: 1, output: 16 },
+}
+
 // ---- 1. 基础聚合与计价 ----
 {
   const state = fold([
     stepStart(1, 1, 0, seq()),
     message(1, 1, 'deepseek-chat', { inputTokens: 100, outputTokens: 50 }, 1_000, seq()),
   ])
-  const view = receiptView(state, DEFAULT_PRICING, '¥')
+  const view = receiptView(state, TEST_LEGACY_PRICING, '¥')
   assert.equal(view.models.length, 1)
   const row = view.models[0]!
   assert.equal(row.model, 'deepseek-chat')
@@ -85,7 +92,7 @@ const seq = (() => { let n = 0; return () => n++ })()
     message(1, 1, 'deepseek-chat', undefined, 500, seq()),
     message(1, 1, 'deepseek-chat', { inputTokens: 120, outputTokens: 60 }, 1_000, seq()),
   ])
-  const view = receiptView(state, DEFAULT_PRICING, '¥')
+  const view = receiptView(state, TEST_LEGACY_PRICING, '¥')
   assert.equal(view.models.length, 1)
   assert.equal(view.models[0]!.calls, 1)
   assert.equal(view.models[0]!.inputTokens, 120)
@@ -101,7 +108,7 @@ const seq = (() => { let n = 0; return () => n++ })()
     message(1, 1, 'deepseek-chat', undefined, 400, seq()),
     stepEnd(1, 1, 500, seq()),
   ])
-  const view = receiptView(state, DEFAULT_PRICING, '¥')
+  const view = receiptView(state, TEST_LEGACY_PRICING, '¥')
   assert.equal(view.models.length, 1)
   const row = view.models[0]!
   assert.equal(row.model, 'deepseek-chat')
@@ -124,13 +131,14 @@ const seq = (() => { let n = 0; return () => n++ })()
       reasoningTokens: 5,
     }, 1_000, seq()),
   ])
-  const view = receiptView(state, DEFAULT_PRICING, '¥')
+  const view = receiptView(state, TEST_LEGACY_PRICING, '¥')
   const row = view.models[0]!
   assert.equal(row.cacheReadTokens, 200)
   assert.equal(row.cacheWriteTokens, 10)
   assert.equal(row.reasoningTokens, 5)
   // 100/1e6*2 + 200/1e6*0.5 + 10/1e6*0 + 50/1e6*8 + 5/1e6*0
   assert.ok(Math.abs(row.cost - (0.0002 + 0.0001 + 0.0004)) < 1e-12)
+  assert.equal(row.priced, false, '缓存写入有用量但未配置价格时不得标成完整计价')
 }
 
 // ---- 5. 未配置价格的模型：未计价 ----
@@ -139,7 +147,7 @@ const seq = (() => { let n = 0; return () => n++ })()
     stepStart(1, 1, 0, seq()),
     message(1, 1, 'vendor-unknown-model', { inputTokens: 100, outputTokens: 50 }, 1_000, seq()),
   ])
-  const view = receiptView(state, DEFAULT_PRICING, '¥')
+  const view = receiptView(state, TEST_LEGACY_PRICING, '¥')
   const row = view.models[0]!
   assert.equal(row.priced, false)
   assert.equal(row.cost, 0)
@@ -168,7 +176,7 @@ const seq = (() => { let n = 0; return () => n++ })()
 
 // ---- 7. 定义工厂：schema 能解析 view 输出（wire 契约） ----
 {
-  const def = receiptProjectionDefinition(DEFAULT_PRICING, '¥')
+  const def = receiptProjectionDefinition(TEST_LEGACY_PRICING, '¥')
   const state = fold([
     stepStart(1, 1, 0, seq()),
     message(1, 1, 'deepseek-chat', { inputTokens: 10, outputTokens: 5 }, 500, seq()),
@@ -191,7 +199,7 @@ const seq = (() => { let n = 0; return () => n++ })()
     stepStart(1, 2, 1_100, seq()),
     message(1, 2, 'deepseek-reasoner', { inputTokens: 200, outputTokens: 100 }, 2_000, seq()),
   ])
-  const view = receiptView(state, DEFAULT_PRICING, '¥')
+  const view = receiptView(state, TEST_LEGACY_PRICING, '¥')
   assert.equal(view.models.length, 2)
   assert.equal(view.totals.calls, 2)
   assert.equal(view.totals.inputTokens, 300)
@@ -213,7 +221,7 @@ const seq = (() => { let n = 0; return () => n++ })()
     stepStart(2, 1, PEAK_TS, seq()),
     message(2, 1, 'deepseek-chat', { inputTokens: 100, outputTokens: 50 }, PEAK_TS + 100, seq()),
   ])
-  const view = receiptView(state, DEFAULT_PRICING, '¥')
+  const view = receiptView(state, TEST_LEGACY_PRICING, '¥')
   const row = view.models[0]!
   // 空闲 0.0006 + 高峰 0.0012；peakCost = 高峰多出的 0.0006
   assert.ok(Math.abs(row.cost - 0.0018) < 1e-12)
@@ -227,7 +235,7 @@ const seq = (() => { let n = 0; return () => n++ })()
   const allOff = receiptView(fold([
     stepStart(1, 1, OFF_TS, seq()),
     message(1, 1, 'deepseek-chat', { inputTokens: 100, outputTokens: 50 }, OFF_TS + 100, seq()),
-  ]), DEFAULT_PRICING, '¥')
+  ]), TEST_LEGACY_PRICING, '¥')
   assert.equal(allOff.totals.peakCost, 0)
 }
 
@@ -239,19 +247,19 @@ const seq = (() => { let n = 0; return () => n++ })()
     stepStart(1, 1, PEAK_TS, seq()),
     message(1, 1, 'deepseek-chat', { inputTokens: 100, outputTokens: 50 }, PEAK_TS + 100, seq()),
   ])
-  const view = receiptView(state, DEFAULT_PRICING, '¥', { peakHours: [{ start: 14, end: 18 }], peakMultiplier: 3 })
+  const view = receiptView(state, TEST_LEGACY_PRICING, '¥', { peakHours: [{ start: 14, end: 18 }], peakMultiplier: 3 })
   assert.ok(Math.abs(view.totals.cost - 0.0006 * 3) < 1e-12)
   assert.ok(Math.abs(view.totals.peakCost - 0.0006 * 2) < 1e-12)
   assert.equal(view.peakMultiplier, 3)
   // 同一时刻不在自定义窗口（窗口 [0,1)）：空闲
-  const off = receiptView(state, DEFAULT_PRICING, '¥', { peakHours: [{ start: 0, end: 1 }] })
+  const off = receiptView(state, TEST_LEGACY_PRICING, '¥', { peakHours: [{ start: 0, end: 1 }] })
   assert.ok(Math.abs(off.totals.cost - 0.0006) < 1e-12)
   assert.equal(off.totals.peakCost, 0)
 }
 
 // ---- 11. 定义工厂：schema 能解析带峰谷字段的 view 输出 ----
 {
-  const def = receiptProjectionDefinition(DEFAULT_PRICING, '¥')
+  const def = receiptProjectionDefinition(TEST_LEGACY_PRICING, '¥')
   const state = fold([
     stepStart(1, 1, 9 * 3_600 * 1_000, seq()),
     message(1, 1, 'deepseek-chat', { inputTokens: 10, outputTokens: 5 }, 9 * 3_600 * 1_000 + 100, seq()),
@@ -305,7 +313,7 @@ const seq = (() => { let n = 0; return () => n++ })()
       stepStart(1, 1, ts, seq()),
       message(1, 1, 'deepseek-chat', { inputTokens: 100, outputTokens: 50 }, ts + 100, seq()),
     ])
-    const view = receiptView(state, DEFAULT_PRICING, '¥')
+    const view = receiptView(state, TEST_LEGACY_PRICING, '¥')
     const row = view.models[0]!
     assert.equal(row.peakCost, 0, '周末高峰窗口时段不应计高峰费用')
     assert.ok(Math.abs(row.cost - 0.0006) < 1e-12, '周末按谷底单价计费')
@@ -333,6 +341,38 @@ const seq = (() => { let n = 0; return () => n++ })()
   assert.equal(pro.priced, true)
   assert.equal(pro.cost, 4.5)
   assert.equal(view.totals.peakCost, 0)
+}
+
+// ---- 15. 官网未列出的旧模型默认不估价；推理 token 已包含在输出 token 中 ----
+{
+  const state = fold([
+    stepStart(1, 1, 0, seq()),
+    message(1, 1, 'deepseek-chat', { inputTokens: 1_000_000, outputTokens: 0 }, 1_000, seq()),
+    message(1, 2, 'deepseek-flash', {
+      inputTokens: 0, cacheReadTokens: 1_000_000, outputTokens: 1_000_000, reasoningTokens: 250_000,
+    }, 2_000, seq()),
+  ])
+  const view = receiptView(state, DEFAULT_PRICING, '¥')
+  assert.equal(view.models.find(row => row.model === 'deepseek-chat')?.priced, false)
+  assert.equal(view.models.find(row => row.model === 'deepseek-flash')?.cost, 4.02)
+  assert.equal(view.totals.outputTokens, 1_000_000)
+  assert.equal(view.totals.reasoningTokens, 250_000)
+}
+
+// ---- 16. provider 专属价格优先；自定义推理价替换对应输出部分，不重复收费 ----
+{
+  const state = fold([
+    stepStart(1, 1, 0, seq()),
+    message(1, 1, 'deepseek-flash', {
+      inputTokens: 1_000_000, outputTokens: 1_000_000, reasoningTokens: 250_000,
+    }, 1_000, seq()),
+  ])
+  const pricing: PricingTable = {
+    'deepseek-flash': { input: 1, output: 4 },
+    'deepseek-official/deepseek-flash': { input: 2, output: 4, reasoning: 8 },
+  }
+  const view = receiptView(state, pricing, '¥')
+  assert.equal(view.totals.cost, 7) // 输入 2 + 普通输出 0.75×4 + 推理 0.25×8
 }
 
 console.log('verify-projection: 全部断言通过 ✓')

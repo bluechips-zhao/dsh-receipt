@@ -6,7 +6,7 @@
  * @module dsh-receipt/types
  */
 export {};
-/** token 分桶（与 @deepseek-ai/dsh-llm 的 TokenUsage 对齐；各桶互不重叠）。 */
+/** token 统计与 @deepseek-ai/dsh-llm 的 TokenUsage 对齐；推理是输出的子集。 */
 export interface ReceiptTokenCounts {
     /** 未命中缓存的输入 token 数。 */
     inputTokens: number;
@@ -16,7 +16,7 @@ export interface ReceiptTokenCounts {
     cacheReadTokens: number;
     /** 写入缓存的 token 数。 */
     cacheWriteTokens: number;
-    /** 推理 token 数（provider 报告时才有，否则为 0）。 */
+    /** 输出 token 中的推理部分（provider 报告时才有，否则为 0）。 */
     reasoningTokens: number;
 }
 /** 高峰时段窗口：按北京时间小时计，半开区间 `[start, end)`。 */
@@ -38,7 +38,7 @@ export interface ReceiptModelRow extends ReceiptTokenCounts {
     cost: number;
     /** 其中落在高峰时段的部分费用。 */
     peakCost: number;
-    /** 是否命中定价表；false 表示该模型未配置价格。 */
+    /** 是否全部计价；false 表示模型或有用量的分桶缺少价格。 */
     priced: boolean;
 }
 /** `receipt` 投影的完整 wire 值（registry `view` 输出，schema 校验后下发）。 */
@@ -54,7 +54,7 @@ export interface ReceiptProjection {
         /** 合计中落在高峰时段的部分。 */
         peakCost: number;
     };
-    /** 合计是否完全可计价：至少一行且每一行都命中定价表才为 true。 */
+    /** 合计是否完全可计价：至少一行且每一行都有完整分桶价格才为 true。 */
     priced: boolean;
     /** 模型耗时（step/start → assistant/message 之和），ms。 */
     llmMs: number;

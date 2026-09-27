@@ -1,5 +1,5 @@
 import type { SnapshotSelectorHook, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
-import type { SessionListState } from '@deepseek-ai/dsh-client-runtime/client';
+import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client';
 import { NS } from './locales.ts';
 /** 小票卡片的完整 props（由 ReceiptOverlay 组装）。 */
 export interface ReceiptCardProps {
@@ -13,5 +13,5 @@ export interface ReceiptCardProps {
  * `projectionValues.receipt`（host 投影值随 session/projection 帧实时刷新）。
  * 支持 Escape 关闭、点击遮罩关闭、焦点落入关闭按钮、卸载归还焦点。
  */
-export declare function ReceiptCard({ sessionId, useSessions, onClose, t }: ReceiptCardProps): import("react").JSX.Element;
+export declare function ReceiptCard({ sessionId, useSessions, onClose, t }: ReceiptCardProps): import("react/jsx-runtime").JSX.Element;
 //# sourceMappingURL=ReceiptCard.d.ts.map

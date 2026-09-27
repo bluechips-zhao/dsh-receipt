@@ -2,7 +2,7 @@
  * 模型定价表：每 1M token 的价格（当前货币单位，默认人民币 ¥）。
  *
  * 内置 DeepSeek 官方定价页公开的单价：当前在售的 deepseek-flash（V4.1-Flash）
- * 与 deepseek-v4-pro，以及历史经典模型；其余模型不猜测价格，未配置时按
+ * 与 deepseek-v4-pro；官网不再列出的历史模型不猜测价格，未配置时按
  * "未计价"展示，由用户在 profile 配置里按需补充（见 README）。
  *
  * 对"与主型号同价"的模型族（如 deepseek-v4-flash-vision-exp 与
@@ -33,12 +33,12 @@ export type PricingTable = Readonly<Record<string, PricingEntry>>;
 export declare const PRICING_ALIASES: Readonly<Record<string, string>>;
 /**
  * 解析一个 (provider, model) 的定价条目。
- * 优先级：精确模型 id → `provider/model` 复合键 → 别名基准模型
+ * 优先级：`provider/model` 复合键 → 精确模型 id → 别名基准模型
  * （对基准模型再走同样两级，基准模型未配置则返回 undefined）。
  */
 export declare function resolvePricing(pricing: PricingTable, provider: string, model: string): PricingEntry | undefined;
 /**
- * 内置默认定价（DeepSeek 官方公开价格，¥/1M tokens）。
+ * 内置默认定价（DeepSeek 官方定价页，2026-09-27 核对，¥/1M tokens）。
  *
  * 分时计价的模型按**空闲（谷底）时段单价**内置：折叠时对落在工作日高峰窗口的
  * 样本乘 `peakMultiplier`（官方为 2），故此处只写谷底价（官方：空闲 = 高峰的一半）。

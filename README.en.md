@@ -67,8 +67,8 @@ DeepSeek).
   docs only). A static scan that counts them as permission signals is reading the
   build surface, not the runtime surface.
 - **Compatibility**: Node.js `^22.19.0 || >=24`; the per-version DSH declaration
-  lives in `package.json` under `dsh.compatibility.dshReleases` (currently verified
-  on `0.1.5-rc.1`).
+  lives in `package.json` under `dsh.compatibility.dshReleases`. The client and
+  host packages must be on the same version line; see Verification for `0.1.7-rc.2` evidence.
 - **Known bounds**: costs are a local estimate from the configured pricing table, not
   a billing record; models missing from the table render as unpriced; peak/off-peak
   is decided from the sample event time (local clock).
@@ -78,15 +78,13 @@ DeepSeek).
 Only **plugin authors/maintainers** need to build; regular users install the
 `lib/` artifact directly.
 
-Prerequisites: a local DeepSeek Harness checkout that has been `pnpm install`ed
-and built (`node_modules/.bin/tsc` and `tsdown` available). This plugin's build
-depends on that checkout's `harness` platform module table and `lightningcss`,
-so create two junctions inside this repo:
+Prerequisite: a checkout of the matching DSH tag. The build reads its browser
+platform module table; this repository's lockfile provides the build tools:
 
 ```powershell
 # Inside the dsh-receipt directory; adjust paths to your own machine layout
-New-Item -ItemType Junction -Path node_modules -Target "$env:USERPROFILE\.dsh\profiles\node_modules"
 New-Item -ItemType Junction -Path harness     -Target "<your DeepSeek Harness checkout path>"
+pnpm install --frozen-lockfile
 ```
 
 Then:
@@ -102,9 +100,10 @@ and commit `lib/` before publishing.
 
 ## Configuration (pricing)
 
-The plugin bundles DeepSeek's published **off-peak (trough) prices** for the
-current lineup — `deepseek-flash` (V4.1-Flash) and `deepseek-v4-pro`, plus the
-historical classic models; anything else shows "unpriced" and costs 0. Time-of-day
+The plugin bundles the **off-peak prices** checked against DeepSeek's
+[official pricing page](https://api-docs.deepseek.com/quick_start/pricing/) on **2026-09-27**:
+`deepseek-flash` (V4.1-Flash) and `deepseek-v4-pro` (V4-Pro-0813). Historical
+models no longer listed there show "unpriced" and cost 0. Time-of-day
 (peak/off-peak) billing is folded automatically from each sample's time (next
 section). To override a default, replace `config` (a full-section replacement) on
 the `dsh-receipt` row in the profile's `cordis.patch.yml`:
@@ -115,17 +114,25 @@ the `dsh-receipt` row in the profile's `cordis.patch.yml`:
   config:
     currency: ¥
     pricing:
-      # The three entries below are built in; shown here as override examples.
+      # Both entries below are built in; shown here as override examples.
       # Unit: currency per 1M tokens, quoting the off-peak (trough) price.
       deepseek-flash: { input: 1, cacheRead: 0.02, output: 4 }
       deepseek-v4-pro: { input: 4.5, cacheRead: 0.15, output: 13.5 }
-      deepseek-chat: { input: 2, cacheRead: 0.5, output: 8 }
 ```
 
 - Price unit: **currency amount per 1M tokens**; fields: `input` / `cacheRead` /
-  `cacheWrite` / `output` / `reasoning`, missing ones count as 0.
-- Key precedence: exact model id, then `provider/model` composite key, then the
+  `cacheWrite` / `output` / `reasoning`. A bucket with usage but no rate marks
+  the model unpriced; the total contains only calculable portions. The current
+  official table does not give a separate cache-write rate, so configure one
+  under your provider's actual billing rules if the adapter reports that usage.
+- Key precedence: `provider/model` composite key, then model id, then the
   **same-price alias** base model (no cross-provider merge is performed).
+- `deepseek-chat` and `deepseek-reasoner` have no bundled historical price.
+  Configure the price applicable to an old conversation if you need an estimate;
+  today's price does not reconstruct a historical bill.
+- `reasoningTokens` is part of `outputTokens`. The receipt shows it as a detail,
+  but does not add it twice to total tokens. A custom `reasoning` rate replaces
+  the corresponding output portion; without one, all output uses the `output` rate.
 - **Same-price alias**: the retired names `deepseek-v4-flash` and
   `deepseek-v4-flash-vision-exp` are still callable and are served by
   DeepSeek-V4.1-Flash at Flash prices, so the built-in `PRICING_ALIASES` maps both
@@ -154,24 +161,31 @@ footnote (3) defines:
 
 The receipt folds peak/off-peak from each step sample's timestamp: the built-in
 prices are the **off-peak** ones, samples inside a weekday peak window are charged
-`peakMultiplier` (default 2), and weekends are always off-peak. The receipt amount
-is therefore already time-of-day accurate — no manual doubling. Change the windows
-or the multiplier through `peakHours` / `peakMultiplier`.
+`peakMultiplier` (default 2), and weekends are always off-peak. No manual doubling
+is needed. Change the windows or multiplier through `peakHours` / `peakMultiplier`.
+The plugin approximates billing time with the committed `assistant/message` time
+and cannot include calls that did not land in the session; the amount remains an
+estimate, and the provider bill is authoritative.
 
 **Naming and retirement notes (official footnotes 1 and 2)**: use `deepseek-flash`
 as the model name; the retired names `deepseek-v4-flash` and
 `deepseek-v4-flash-vision-exp` are still callable but are served by V4.1-Flash at
-Flash prices (aliases built in). From **2026-09-14 12:00 Beijing time** until V4.1
-Pro ships, every `deepseek-v4-pro` request is routed to V4.1-Flash and billed at
-**Flash prices** — after that date the real bill will be lower than a receipt
-computed at V4-Pro rates, so either change that entry to the Flash price or drop it
-and let the built-in alias apply.
+Flash prices (aliases built in). DeepSeek now says V4 Pro API service continues
+after **2026-09-14** with unchanged billing, so the plugin retains a separate
+`deepseek-v4-pro` price. Recheck the official pricing page when prices change.
 
 ## Verification
 
+Verified in an isolated `dsh-v0.1.7-rc.2` environment: `pnpm test`,
+`pnpm typecheck`, `pnpm build`, profile plugin installation,
+`--dump-config` composition, and Web host startup. An HTTP request without
+that isolated host's access token returned the expected `401`. The browser
+receipt action, real provider events, and agreement with actual bills have not
+been verified.
+
 ```sh
-# Projection/folding logic unit assertions (no dependency scripts; native type-stripping)
-node --experimental-strip-types scripts/verify-projection.ts
+# Projection/folding logic unit assertions
+pnpm test
 
 # GUI end-to-end check (optional: needs the dsh web running on localhost:3080 and
 # a Playwright Chromium; paths are configured via env vars, see the top of scripts/gui-check.mjs)

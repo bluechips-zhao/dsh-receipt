@@ -55,8 +55,8 @@ pnpm dsh plugin --profile web add github:bluechips-zhao/dsh-receipt
   `scripts/*` 读取若干环境变量，这些属于**构建与自检工具链**，不随包分发
   （`files` 只含 `lib/` 与文档）。静态扫描若把它们计为权限信号，属构建面而非运行面。
 - **兼容性**：Node.js `^22.19.0 || >=24`；DSH 逐版本声明见 `package.json` 的
-  `dsh.compatibility.dshReleases`（当前在 `0.1.5-rc.1` 上完成宿主半的 typecheck 与
-  投影折叠自检；客户端半要求界面包与宿主安装在同一版本线上）。
+  `dsh.compatibility.dshReleases`。客户端半要求界面包与宿主安装在同一版本线上；
+  `0.1.7-rc.2` 的验证结果见下方「验证」，不能仅凭版本号推断兼容。
 - **已知边界**：费用是按配置定价表做的本地估算，非账单口径；定价表未声明的模型
   以"未计价"展示；峰谷时段按样本事件时间（本机时钟）判定。
 
@@ -64,14 +64,13 @@ pnpm dsh plugin --profile web add github:bluechips-zhao/dsh-receipt
 
 只有**插件作者/维护者**需要构建；普通用户直接安装 `lib/` 产物即可。
 
-前置：本机有 DeepSeek Harness checkout，且已 `pnpm install` 构建过
-（`node_modules/.bin/tsc`、`tsdown` 可用）。本插件的构建依赖该 checkout 的
-`harness` 平台模块表与 `lightningcss`，因此需在本仓库内建立两个 junction：
+前置：本机有对应 DSH tag 的 checkout；本插件的构建从该 checkout 读取
+`harness` 平台模块表。依赖由本仓库的锁文件安装：
 
 ```powershell
 # 在 dsh-receipt 目录内，按你本机布局调整目标路径
-New-Item -ItemType Junction -Path node_modules -Target "$env:USERPROFILE\.dsh\profiles\node_modules"
 New-Item -ItemType Junction -Path harness     -Target "<你的 DeepSeek Harness checkout 路径>"
+pnpm install --frozen-lockfile
 ```
 
 然后：
@@ -86,8 +85,8 @@ pnpm run build      # tsc host + client 类型检查与产物，tsdown 出 lib/i
 
 ## 配置（定价）
 
-插件内置 DeepSeek 官方定价页公开的单价的**空闲（谷底）时段价**——当前在售的
-`deepseek-flash`（V4.1-Flash）与 `deepseek-v4-pro`，以及历史经典模型；其余模型显示
+插件内置截至 **2026-09-27** 核对的 DeepSeek [官方定价页](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)的**空闲时段价**——
+`deepseek-flash`（V4.1-Flash）与 `deepseek-v4-pro`（V4-Pro-0813）。官网未列出的历史模型显示
 "未计价"、费用记 0。分时（峰谷）计价由折叠按样本时间自动处理（见下节）。要覆盖默认价，
 在 profile 的 `cordis.patch.yml` 里对 `dsh-receipt` 行覆盖 `config`（整段替换）：
 
@@ -97,16 +96,20 @@ pnpm run build      # tsc host + client 类型检查与产物，tsdown 出 lib/i
   config:
     currency: ¥
     pricing:
-      # 下列三项已内置，此处仅作覆盖示例；单位 ¥/1M tokens，写空闲（谷底）时段价
+      # 下列两项已内置，此处仅作覆盖示例；单位 ¥/1M tokens，写空闲时段价
       deepseek-flash: { input: 1, cacheRead: 0.02, output: 4 }
       deepseek-v4-pro: { input: 4.5, cacheRead: 0.15, output: 13.5 }
-      deepseek-chat: { input: 2, cacheRead: 0.5, output: 8 }
 ```
 
 - 单价单位：**每 1M token 的货币额**；字段：`input` / `cacheRead` / `cacheWrite`
-  / `output` / `reasoning`，缺省按 0 计。
-- 键优先精确模型 id，其次 `provider/model` 复合键，再次**同价别名**基准模型
+  / `output` / `reasoning`。有用量的桶缺少单价时，该模型标为「未计价」，合计只包含可计算部分。
+  官方当前定价页未单列缓存写入价，内置表不猜测 `cacheWrite`；如适配器报告此用量，请按实际计费规则配置。
+- 键优先 `provider/model` 复合键，其次模型 id，再次**同价别名**基准模型
   （本插件不做跨 provider 冲突合并）。
+- 官网不再列出的 `deepseek-chat`、`deepseek-reasoner` 不内置历史价格；若需估算旧会话，
+  请自行配置对应**使用时段**的价格。当前价套到历史用量上也只是估算，不代表原始账单。
+- `reasoningTokens` 属于 `outputTokens`，小票展示推理明细，但合计 token 不重复相加。
+  自定义 `reasoning` 单价会替换对应的输出部分；未配置则全部按 `output` 计价。
 - **同价别名**：已下线的旧名 `deepseek-v4-flash`、`deepseek-v4-flash-vision-exp`
   仍可调用，由 DeepSeek-V4.1-Flash 提供服务并按 Flash 价格计费，故内置 `PRICING_ALIASES`
   把它们映射到 `deepseek-flash`；若单独配置旧名，则以它自己的价格为准。
@@ -128,21 +131,25 @@ DeepSeek 现行模型采用**分时计价**。官方[模型 & 价格](https://ap
 | `deepseek-v4-pro` | 工作日高峰 9:00–12:00、14:00–18:00 | ¥9.0 | ¥0.30 | ¥27.0 |
 
 小票按 step 样本时间折叠峰谷：内置默认价写的是**空闲时段价**，落在工作日高峰窗口的样本
-按 `peakMultiplier`（默认 2）计，周末全天按谷底价计。因此小票金额本身就是**分时精确**的，
-无需再手动乘 2；要改窗口或倍率，配置 `peakHours` / `peakMultiplier` 即可。
+按 `peakMultiplier`（默认 2）计，周末全天按谷底价计。小票无需再手动乘 2；
+要改窗口或倍率，配置 `peakHours` / `peakMultiplier` 即可。插件使用 `assistant/message`
+的落地时间近似计费时间，也无法覆盖未落地的调用；金额始终是本地估算，以实际账单为准。
 
 **命名与下线提醒（官方定价页脚注 1、2）**：新模型名请用 `deepseek-flash`；旧名
 `deepseek-v4-flash`、`deepseek-v4-flash-vision-exp` 仍可调用，但由 V4.1-Flash 提供服务
-并按 Flash 价计费（已内置别名）。北京时间 **2026-09-14 12:00** 起、至 V4.1 Pro 上线前，
-`deepseek-v4-pro` 的请求将全部路由到 V4.1-Flash 并按 **Flash 价格**计费——该日期之后
-若你仍在使用 `deepseek-v4-pro` 这个名字，实际账单会低于小票按 V4-Pro 单价算出的金额；
-此时可把该条目改成 Flash 价，或删掉它让内置别名生效。
+并按 Flash 价计费（已内置别名）。官方现称 **2026-09-14 后继续提供 V4 Pro API，计费方式不变**；
+本插件据此保留 `deepseek-v4-pro` 的独立价格。价格可能变动，请以官方定价页为准。
 
 ## 验证
 
+已在隔离的 `dsh-v0.1.7-rc.2` 环境中完成 `pnpm test`、`pnpm typecheck`、
+`pnpm build`、profile 插件安装、`--dump-config` 组合与 Web 宿主启动。
+HTTP 未携带该隔离环境的访问令牌时返回预期的 `401`。尚未验证浏览器内的小票按钮、
+真实 provider 事件与实际账单一致性。
+
 ```sh
-# 投影折叠逻辑单元断言（无依赖脚本，node 原生 type-stripping）
-node --experimental-strip-types scripts/verify-projection.ts
+# 投影折叠逻辑单元断言
+pnpm test
 
 # GUI 端到端检查（可选：需要本地 3080 的 dsh web 已启动，且装有 playwright chromium；
 # 路径经环境变量配置，见 scripts/gui-check.mjs 顶部注释）

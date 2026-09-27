@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { IconCloseOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCloseOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SnapshotSelectorHook, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
-import type { SessionListState } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { ReceiptModelRow, ReceiptPeakWindow, ReceiptProjection } from '../types.ts'
 import { NS } from './locales.ts'
 import css from './Receipt.module.css'
@@ -121,7 +121,7 @@ function ReceiptContent({
               <div className={css.totalRow}><dt>{t('totals.calls')}</dt><dd>{group(receipt.totals.calls)}</dd></div>
               <div className={css.totalRow}>
                 <dt>{t('totals.tokens')}</dt>
-                <dd>{group(receipt.totals.inputTokens + receipt.totals.outputTokens + receipt.totals.cacheReadTokens + receipt.totals.cacheWriteTokens + receipt.totals.reasoningTokens)}</dd>
+                <dd>{group(receipt.totals.inputTokens + receipt.totals.outputTokens + receipt.totals.cacheReadTokens + receipt.totals.cacheWriteTokens)}</dd>
               </div>
               <div className={css.totalRow}><dt>{t('time.llm')}</dt><dd>{formatDuration(receipt.llmMs)}</dd></div>
               <div className={css.totalRow}><dt>{t('time.span')}</dt><dd>{formatDuration(receipt.spanMs)}</dd></div>
@@ -150,7 +150,7 @@ function ReceiptContent({
  * 支持 Escape 关闭、点击遮罩关闭、焦点落入关闭按钮、卸载归还焦点。
  */
 export function ReceiptCard({ sessionId, useSessions, onClose, t }: ReceiptCardProps) {
-  const summary = useSessions(state => state.byId[sessionId])
+  const summary = useSessions((state: SessionListState) => state.byId[sessionId as keyof SessionListState['byId']])
   const receipt = summary?.projectionValues?.receipt
   const closeRef = useRef<HTMLButtonElement | null>(null)
 
@@ -186,7 +186,7 @@ export function ReceiptCard({ sessionId, useSessions, onClose, t }: ReceiptCardP
             aria-label={t('modal.close')}
             onClick={onClose}
           >
-            <IconCloseOutline16 />
+            <IconCloseOutlineRegular size={16} />
           </button>
         </header>
         <div className={css.body}>

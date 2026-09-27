@@ -1,7 +1,7 @@
 /**
  * 包内 tsdown 配置：一次产出 host 半（lib/index.js）与 browser 半（lib/client.js）。
  * harness 是 D: checkout 的 junction（node_modules 的兄弟目录），
- * 官方 platform 表与 lightningcss 从 checkout 解析。
+ * 官方 platform 表从 checkout 读取；lightningcss 从本包锁定的构建依赖解析。
  *
  * 注意（0.1.1-rc.2 起）：官方 `clientBundle` 预设通过 workspaceManifest
  * 从 checkout 的 packages 目录查找包清单，out-of-tree 插件（本包不在
@@ -11,16 +11,15 @@
  *   external = checkout 的 PLATFORM_MODULES + PRELOADED_CLIENT_EXTERNALS，
  *   其余依赖内联；CSS Modules 经 lightningcss 编译为 class map 并注入样式。
  *
- * 不在本文件 import 'tsdown' / 'lightningcss' 裸包名：它们只存在于 checkout
- * 的 node_modules，而本配置由 tsdown CLI 从插件目录加载（node 解析不到）。
- * 通过 harness junction 的相对路径解析即可；tsdown 的配置对象形状保持与
+ * lightningcss 与 tsdown 是本包的锁定构建依赖；官方 platform 表仍经
+ * harness junction 读取。tsdown 的配置对象形状保持与
  * 官方 UserConfig 一致（见 packages/client/tsdown.client.ts）。
  */
 import { readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { basename, dirname, relative, resolve as resolvePath, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { transform } from './harness/node_modules/lightningcss/node/index.mjs'
+import { transform } from 'lightningcss'
 import { PLATFORM_MODULES, PRELOADED_CLIENT_EXTERNALS } from './harness/packages/client/web/src/platform.ts'
 
 /** tsdown 求值时的仓库根（harness junction 指向 checkout）。 */
