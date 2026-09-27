@@ -19,10 +19,12 @@ The data is folded from the session log by a host-side `receipt` projection
 unit (reusing `assistant/message` usage and model attribution) and refreshed in
 real time via `session/projection` frames. The UI only renders; it issues no RPC.
 
-The locally installed `deepseek-harness-usage-dashboard` reads account-wide
-balance and actual billed spend from DeepSeek's platform. This receipt borrows
-its cost/token distribution switch, while using only recorded usage from one
-conversation. It cannot replace the provider bill and requires no platform login.
+[deepseek-harness-usage-dashboard](https://github.com/nzz0991999-ai/dsh-usage-dashboard)
+offers an account-wide balance and billed-spend view from DeepSeek's platform.
+This receipt borrows its cost/token distribution switch, while using only
+recorded usage from one conversation. It cannot replace the provider bill and
+requires no platform login. The dashboard uses undocumented platform usage
+endpoints, whose availability depends on DeepSeek's platform.
 
 ## Installation
 

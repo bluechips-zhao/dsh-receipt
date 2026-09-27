@@ -17,9 +17,11 @@
 的 usage 与模型来源），随 `session/projection` 帧实时刷新；界面只负责展示，
 不发任何 RPC。
 
-本机另一个 `deepseek-harness-usage-dashboard` 读取 DeepSeek 平台账户级余额与实际扣费，
-其模型分布可按金额 / Token 切换；小票借鉴了这个切换方式。两者口径不同：小票只计算
-当前会话中已记录的用量，无法替代跨会话、跨客户端的官方账单，也不需要平台登录态。
+[deepseek-harness-usage-dashboard](https://github.com/nzz0991999-ai/dsh-usage-dashboard)
+提供 DeepSeek 平台账户级余额与扣费视图，其模型分布可按金额 / Token 切换；小票借鉴了
+这个切换方式。两者口径不同：小票只计算当前会话中已记录的用量，无法替代跨会话、
+跨客户端的官方账单，也不需要平台登录态。该仪表盘使用的平台用量接口未公开，
+其可用性取决于 DeepSeek 平台接口状态。
 
 ## 安装
 
