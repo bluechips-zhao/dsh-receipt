@@ -64,7 +64,7 @@ export interface PeakPricingOptions {
     peakHours?: readonly ReceiptPeakWindow[];
     /** 高峰单价倍率（官方为 2）。 */
     peakMultiplier?: number;
-    /** 北京时间日期（YYYY-MM-DD），全天按空闲价；用于法定节假日等例外。 */
+    /** 北京时间日期（YYYY-MM-DD），全天按空闲价；用于补充未内置年度的假期。 */
     offPeakDates?: readonly string[];
 }
 /**

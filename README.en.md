@@ -118,8 +118,8 @@ the `dsh-receipt` row in the profile's `cordis.patch.yml`:
       # Unit: currency per 1M tokens, quoting the off-peak (trough) price.
       deepseek-flash: { input: 1, cacheRead: 0.02, output: 4 }
       deepseek-v4-pro: { input: 4.5, cacheRead: 0.15, output: 13.5 }
-    # Maintain from the official holiday calendar; these Beijing dates are off-peak all day.
-    offPeakDates: ['2026-10-01']
+    # Published 2026 holidays are built in; add later years from official schedules.
+    offPeakDates: ['2027-10-01']
 ```
 
 - Price unit: **currency amount per 1M tokens**; fields: `input` / `cacheRead` /
@@ -164,9 +164,10 @@ footnote (2) defines:
 The receipt folds peak/off-peak from each step sample's timestamp: the built-in
 prices are the **off-peak** ones; samples inside a weekday peak window are charged
 `peakMultiplier` (default 2), and Saturdays/Sundays remain off-peak even when
-designated as make-up workdays. **Statutory holidays
-are not updated automatically**: put Beijing dates (`YYYY-MM-DD`) in `offPeakDates`
-from the official holiday schedule, or those dates may be overestimated. No manual
+designated as make-up workdays. The [published 2026 holiday schedule](https://www.gov.cn/zhengce/zhengceku/202511/content_7047091.htm)
+is built in. Later years **are not updated automatically**: put Beijing dates
+(`YYYY-MM-DD`) in `offPeakDates` from the official schedule, or those dates may
+be overestimated. No manual
 doubling is needed. Change the windows or multiplier through `peakHours` / `peakMultiplier`.
 The plugin approximates billing time with the committed `assistant/message` time
 and cannot include calls that did not land in the session; the amount remains an

@@ -247,7 +247,7 @@ function beijingHour(time: number): number {
 /**
  * 北京时间星期几（0=周日 … 6=周六）。用 UTC 日偏移 +8h 得到，避免夏令时歧义。
  * 官方峰谷规则：自然周末（含调休上班的周末）全天按空闲价；
- * 法定节假日由 offPeakDates 显式提供。
+ * 2026 年公布的假期内置，其他日期由 offPeakDates 显式补充。
  */
 function beijingWeekday(time: number): number {
   // 北京时间比 UTC 早 8 小时：把时间推进 8h 再取 UTC 星期，得到正确的北京星期。
@@ -260,14 +260,28 @@ function isWeekday(time: number): boolean {
   return day >= 1 && day <= 5
 }
 
+/** 国务院办公厅公布的 2026 年放假调休日期，北京时间，首尾均包含。
+ * https://www.gov.cn/zhengce/zhengceku/202511/content_7047091.htm
+ */
+const CHINA_OFF_PEAK_RANGES_2026: readonly (readonly [string, string])[] = [
+  ['2026-01-01', '2026-01-03'],
+  ['2026-02-15', '2026-02-23'],
+  ['2026-04-04', '2026-04-06'],
+  ['2026-05-01', '2026-05-05'],
+  ['2026-06-19', '2026-06-21'],
+  ['2026-09-25', '2026-09-27'],
+  ['2026-10-01', '2026-10-07'],
+]
+
 /**
  * 样本时间是否落在任一高峰窗口（半开区间 [start, end)）。
- * 仅周一至周五且不在 offPeakDates 中判定高峰；调休上班的周末也全天视为谷底。
+ * 仅周一至周五且不在内置假期/offPeakDates 中判定高峰；调休上班的周末也全天视为谷底。
  */
 function isPeak(time: number, windows: readonly ReceiptPeakWindow[], offPeakDates: ReadonlySet<string>): boolean {
   if (!isWeekday(time)) return false
   const beijingDate = new Date(time + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
-  if (offPeakDates.has(beijingDate)) return false
+  if (offPeakDates.has(beijingDate)
+    || CHINA_OFF_PEAK_RANGES_2026.some(([start, end]) => beijingDate >= start && beijingDate <= end)) return false
   const hour = beijingHour(time)
   return windows.some(window => hour >= window.start && hour < window.end)
 }
@@ -284,7 +298,7 @@ export interface PeakPricingOptions {
   peakHours?: readonly ReceiptPeakWindow[]
   /** 高峰单价倍率（官方为 2）。 */
   peakMultiplier?: number
-  /** 北京时间日期（YYYY-MM-DD），全天按空闲价；用于法定节假日等例外。 */
+  /** 北京时间日期（YYYY-MM-DD），全天按空闲价；用于补充未内置年度的假期。 */
   offPeakDates?: readonly string[]
 }
 

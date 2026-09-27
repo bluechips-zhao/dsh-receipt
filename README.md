@@ -99,8 +99,8 @@ pnpm run build      # tsc host + client 类型检查与产物，tsdown 出 lib/i
       # 下列两项已内置，此处仅作覆盖示例；单位 ¥/1M tokens，写空闲时段价
       deepseek-flash: { input: 1, cacheRead: 0.02, output: 4 }
       deepseek-v4-pro: { input: 4.5, cacheRead: 0.15, output: 13.5 }
-    # 依据官方节假日安排维护；这些北京时间日期全天按空闲价
-    offPeakDates: ['2026-10-01']
+    # 2026 年已公布假期内置；后续年度按官方安排补充北京时间日期
+    offPeakDates: ['2027-10-01']
 ```
 
 - 单价单位：**每 1M token 的货币额**；字段：`input` / `cacheRead` / `cacheWrite`
@@ -134,8 +134,9 @@ DeepSeek 现行模型采用**分时计价**。官方[模型 & 价格](https://ap
 
 小票按 step 样本时间折叠峰谷：内置默认价写的是**空闲时段价**，落在工作日高峰窗口的样本
 按 `peakMultiplier`（默认 2）计；周六、周日即使调休上班，也全天按谷底价计。
-**法定节假日不会自动更新**；
-请按官方安排在 `offPeakDates` 配置北京时间日期（`YYYY-MM-DD`），否则这些日期可能被高估。
+已内置[国务院办公厅公布的 2026 年放假调休日期](https://www.gov.cn/zhengce/zhengceku/202511/content_7047091.htm)；
+后续年度的安排**不会自动更新**，请按官方安排在 `offPeakDates` 补充北京时间日期
+（`YYYY-MM-DD`），否则这些日期可能被高估。
 要改窗口或倍率，配置 `peakHours` / `peakMultiplier` 即可。插件使用 `assistant/message`
 的落地时间近似计费时间，也无法覆盖未落地的调用；金额始终是本地估算，以实际账单为准。
 

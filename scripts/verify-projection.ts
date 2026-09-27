@@ -379,17 +379,24 @@ const TEST_LEGACY_PRICING: PricingTable = {
   assert.equal(view.totals.cost, 7) // 输入 2 + 普通输出 0.75×4 + 推理 0.25×8
 }
 
-// ---- 17. 官方法定节假日按空闲价；北京时间日期由配置显式提供 ----
+// ---- 17. 已公布的 2026 年假期默认按空闲价；其他日期可由配置补充 ----
 {
   const time = Date.UTC(2026, 9, 1, 2) // 北京时间 2026-10-01 10:00，周四
   const state = fold([
     stepStart(1, 1, time, seq()),
     message(1, 1, 'deepseek-flash', { inputTokens: 1_000_000, outputTokens: 0 }, time + 100, seq()),
   ])
-  assert.equal(receiptView(state, DEFAULT_PRICING, '¥').totals.cost, 2)
-  const holiday = receiptView(state, DEFAULT_PRICING, '¥', { offPeakDates: ['2026-10-01'] })
+  const holiday = receiptView(state, DEFAULT_PRICING, '¥')
   assert.equal(holiday.totals.cost, 1)
   assert.equal(holiday.totals.peakCost, 0)
+
+  const futureTime = Date.UTC(2027, 9, 1, 2) // 未内置未来年度安排
+  const future = fold([
+    stepStart(1, 1, futureTime, seq()),
+    message(1, 1, 'deepseek-flash', { inputTokens: 1_000_000, outputTokens: 0 }, futureTime + 100, seq()),
+  ])
+  assert.equal(receiptView(future, DEFAULT_PRICING, '¥').totals.cost, 2)
+  assert.equal(receiptView(future, DEFAULT_PRICING, '¥', { offPeakDates: ['2027-10-01'] }).totals.cost, 1)
 }
 
 console.log('verify-projection: 全部断言通过 ✓')

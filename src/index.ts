@@ -46,7 +46,7 @@ export interface Config {
   peakHours: ReceiptPeakWindow[]
   /** 高峰单价倍率；默认 2（DeepSeek-V4 官方峰谷方案）。 */
   peakMultiplier: number
-  /** 额外按空闲价计算的北京时间日期，如中国法定节假日；格式 YYYY-MM-DD。 */
+  /** 额外按空闲价计算的北京时间日期；2026 年已公布假期内置，其他年份请补充；格式 YYYY-MM-DD。 */
   offPeakDates: string[]
 }
 
