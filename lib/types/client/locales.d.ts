@@ -43,7 +43,11 @@ export declare const zh: {
     readonly 'view.models': "模型明细";
     readonly 'mix.title': "Token 结构";
     readonly 'mix.reasoning': "其中推理 {tokens}，已包含在输出中。";
-    readonly 'models.title': "模型费用分布";
+    readonly 'models.title': "模型分布";
+    readonly 'models.metric': "模型分布指标";
+    readonly 'models.metric.cost': "按金额";
+    readonly 'models.metric.tokens': "按 Token";
+    readonly 'models.tokenCount': "{count} tokens";
     readonly 'models.count': "{count} 个模型";
     readonly 'models.more': "还有 {count} 个模型，切换到模型明细查看。";
     readonly 'time.title': "时间与峰谷";

@@ -101,18 +101,28 @@ function TokenMix({ receipt, t }: { receipt: ReceiptProjection; t: Translator })
 }
 
 function ModelMix({ receipt, t }: { receipt: ReceiptProjection; t: Translator }) {
-  const top = receipt.models.slice(0, 5)
+  const [metric, setMetric] = useState<'cost' | 'tokens'>('cost')
+  const sorted = [...receipt.models].sort((a, b) => metric === 'cost'
+    ? b.cost - a.cost || b.calls - a.calls
+    : tokens(b) - tokens(a) || b.calls - a.calls)
+  const top = sorted.slice(0, 5)
+  const total = metric === 'cost' ? receipt.totals.cost : tokens(receipt.totals)
   return (
     <section className={css.panel} aria-label={t('models.title')}>
       <div className={css.sectionHead}><h3>{t('models.title')}</h3><span>{t('models.count', { count: group(receipt.models.length) })}</span></div>
+      <div className={css.metricSwitcher} aria-label={t('models.metric')}>
+        <button type="button" aria-pressed={metric === 'cost'} onClick={() => setMetric('cost')}>{t('models.metric.cost')}</button>
+        <button type="button" aria-pressed={metric === 'tokens'} onClick={() => setMetric('tokens')}>{t('models.metric.tokens')}</button>
+      </div>
       <div className={css.mixList}>
         {top.map(row => {
-          const share = receipt.totals.cost > 0 ? row.cost / receipt.totals.cost * 100 : 0
+          const value = metric === 'cost' ? row.cost : tokens(row)
+          const share = total > 0 ? value / total * 100 : 0
           return (
             <div className={css.mixRow} key={`${row.provider}\u0000${row.model}`}>
-              <div className={css.mixHead}><strong>{row.model || t('unknownModel')}</strong><span>{rowCost(row, receipt.currency, t)}</span></div>
+              <div className={css.mixHead}><strong>{row.model || t('unknownModel')}</strong><span>{metric === 'cost' ? rowCost(row, receipt.currency, t) : t('models.tokenCount', { count: group(value) })}</span></div>
               <div className={css.mixTrack} aria-hidden><span style={{ width: `${share}%` }} /></div>
-              <div className={css.mixMeta}><span>{row.provider || t('unknownProvider')}</span><span>{share > 0 ? `${share.toFixed(1)}%` : t('notAvailable')}</span></div>
+              <div className={css.mixMeta}><span>{row.provider || t('unknownProvider')}</span><span>{metric === 'cost' ? t('models.tokenCount', { count: group(tokens(row)) }) : rowCost(row, receipt.currency, t)} · {share > 0 ? `${share.toFixed(1)}%` : t('notAvailable')}</span></div>
             </div>
           )
         })}

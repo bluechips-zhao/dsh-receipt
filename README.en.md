@@ -5,7 +5,7 @@
 Adds a receipt button to the DeepSeek Harness Web GUI. Its conversation panel shows:
 
 - **Overview**: estimated cost, model calls, total tokens, cache hit rate, and average cost per call;
-- **Cost and usage mix**: four token buckets, cost shares for up to five models, model time, and conversation span;
+- **Cost and usage mix**: four token buckets, cost/token share switching for up to five models, model time, and conversation span;
 - **Per-model details**: expandable call count, token buckets, and calculable cost; reasoning tokens are included in output;
 - **Useful controls**: copy a text summary, keyboard and narrow-screen support, light/dark themes, and reduced motion.
 
@@ -18,6 +18,11 @@ counted event's timestamp.
 The data is folded from the session log by a host-side `receipt` projection
 unit (reusing `assistant/message` usage and model attribution) and refreshed in
 real time via `session/projection` frames. The UI only renders; it issues no RPC.
+
+The locally installed `deepseek-harness-usage-dashboard` reads account-wide
+balance and actual billed spend from DeepSeek's platform. This receipt borrows
+its cost/token distribution switch, while using only recorded usage from one
+conversation. It cannot replace the provider bill and requires no platform login.
 
 ## Installation
 
@@ -106,7 +111,13 @@ The plugin bundles the **off-peak prices** checked against DeepSeek's
 `deepseek-flash` (V4.1-Flash) and `deepseek-v4-pro` (V4-Pro-0813). Historical
 models no longer listed there show "unpriced" and cost 0. Time-of-day
 (peak/off-peak) billing is folded automatically from each sample's time (next
-section). To override a default, replace `config` (a full-section replacement) on
+section). The current official catalog lists these **two current models**;
+`deepseek-v4-flash` and `deepseek-v4-flash-vision-exp` are accepted legacy names
+billed at Flash rates. The receipt preserves the original model name from the
+session log. A third-party provider using the same model ID also matches the
+global default rate; use a `provider/model` override if its price differs.
+Other historical models remain unpriced. A profile-level `pricing` entry overrides bundled defaults and
+should be reviewed after plugin upgrades. To override a default, replace `config` (a full-section replacement) on
 the `dsh-receipt` row in the profile's `cordis.patch.yml`:
 
 ```yaml

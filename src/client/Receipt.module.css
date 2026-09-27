@@ -76,6 +76,7 @@
 .copyButton:focus-visible,
 .close:focus-visible,
 .switcher button:focus-visible,
+.metricSwitcher button:focus-visible,
 .modelDetail summary:focus-visible { outline: 2px solid var(--receipt-accent); outline-offset: 2px; }
 
 .body { overflow: auto; overscroll-behavior: contain; }
@@ -116,6 +117,10 @@
 .sectionHead h3 { margin: 0; font-size: 13px; font-weight: 700; }
 .sectionHead > span { color: var(--dsw-alias-label-tertiary); font-size: 11px; font-variant-numeric: tabular-nums; }
 
+.metricSwitcher { display: inline-flex; gap: 3px; margin: -3px 0 14px; padding: 3px; border-radius: 9px; background: var(--dsw-alias-bg-layer-3); }
+.metricSwitcher button { min-height: 27px; padding: 0 11px; border: 0; border-radius: 7px; background: transparent; color: var(--dsw-alias-label-secondary); font-size: 11px; cursor: pointer; transition: background-color .18s ease, color .18s ease; }
+.metricSwitcher button[aria-pressed="true"] { background: var(--dsw-alias-bg-layer-4); color: var(--dsw-alias-label-primary); box-shadow: 0 1px 4px rgba(0, 0, 0, .1); }
+
 .tokenBar { display: flex; height: 9px; overflow: hidden; border-radius: 99px; background: var(--dsw-alias-border-l3); }
 .tokenPart { display: block; min-width: 1px; transition: width .3s cubic-bezier(.16, 1, .3, 1); }
 .input { background: #7194ee; }
@@ -138,6 +143,7 @@
 .mixTrack { height: 6px; overflow: hidden; margin: 7px 0 5px; border-radius: 99px; background: var(--dsw-alias-border-l3); }
 .mixTrack span { display: block; height: 100%; border-radius: inherit; background: var(--receipt-accent); transition: width .3s cubic-bezier(.16, 1, .3, 1); }
 .mixMeta { color: var(--dsw-alias-label-tertiary); font-size: 10px; font-variant-numeric: tabular-nums; }
+.mixMeta > span:last-child { text-align: right; }
 
 .inlineMetrics { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .inlineMetrics > div { padding: 11px 12px; border-radius: 10px; background: var(--dsw-alias-bg-layer-3); }
@@ -186,6 +192,7 @@
   .copyButton,
   .close,
   .switcher button,
+  .metricSwitcher button,
   .tokenPart,
   .mixTrack span,
   .modelDetail summary { transition: none; }

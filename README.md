@@ -5,7 +5,7 @@
 为 DeepSeek Harness Web GUI 增加“小票”按钮，点击后打开会话用量面板：
 
 - **概览**：预估费用、模型调用、token 总量、缓存命中率、平均每次费用；
-- **费用与用量分布**：四色 token 结构、最多五个模型的费用占比、模型耗时和会话跨度；
+- **费用与用量分布**：四色 token 结构、最多五个模型的金额 / Token 占比切换、模型耗时和会话跨度；
 - **逐模型明细**：展开查看调用次数、各类 token 和已计算费用；推理 token 已含在输出中；
 - **实用操作**：复制文本摘要，键盘与窄屏可用，适配深浅主题和减少动画设置。
 
@@ -16,6 +16,10 @@
 数据由 host 端 `receipt` 会话投影单元从会话日志折叠（复用 `assistant/message`
 的 usage 与模型来源），随 `session/projection` 帧实时刷新；界面只负责展示，
 不发任何 RPC。
+
+本机另一个 `deepseek-harness-usage-dashboard` 读取 DeepSeek 平台账户级余额与实际扣费，
+其模型分布可按金额 / Token 切换；小票借鉴了这个切换方式。两者口径不同：小票只计算
+当前会话中已记录的用量，无法替代跨会话、跨客户端的官方账单，也不需要平台登录态。
 
 ## 安装
 
@@ -89,8 +93,16 @@ pnpm run build      # tsc host + client 类型检查与产物，tsdown 出 lib/i
 
 插件内置截至 **2026-09-27** 核对的 DeepSeek [官方定价页](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)的**空闲时段价**——
 `deepseek-flash`（V4.1-Flash）与 `deepseek-v4-pro`（V4-Pro-0813）。官网未列出的历史模型显示
-"未计价"、费用记 0。分时（峰谷）计价由折叠按样本时间自动处理（见下节）。要覆盖默认价，
-在 profile 的 `cordis.patch.yml` 里对 `dsh-receipt` 行覆盖 `config`（整段替换）：
+"未计价"、费用记 0。分时（峰谷）计价由折叠按样本时间自动处理（见下节）。
+
+截至该次核对，官方当前模型表列出上述**两个现行模型**。`deepseek-v4-flash` 与
+`deepseek-v4-flash-vision-exp` 是仍可调用的旧名，实际按 Flash 价计；会话明细仍保留
+日志里的原始模型名。第三方 provider 若使用相同模型 ID，也会命中全局默认价；
+若其中转价不同，请用 `provider/model` 复合键覆盖，其他历史模型不会自动计价。
+本地 profile 若配置了 `pricing`，该配置会覆盖内置表，升级插件后也应重新核对。
+
+要覆盖默认价，在 profile 的 `cordis.patch.yml` 里对 `dsh-receipt` 行覆盖
+`config`（整段替换）：
 
 ```yaml
 # 在你的 profile 的 cordis.patch.yml 中（如 <DSH_HOME>/profiles/web/cordis.patch.yml）
