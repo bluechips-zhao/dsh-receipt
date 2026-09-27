@@ -246,7 +246,8 @@ function beijingHour(time: number): number {
 
 /**
  * 北京时间星期几（0=周日 … 6=周六）。用 UTC 日偏移 +8h 得到，避免夏令时歧义。
- * 官方峰谷规则：周末全天按空闲价；法定节假日由 offPeakDates 显式提供。
+ * 官方峰谷规则：自然周末（含调休上班的周末）全天按空闲价；
+ * 法定节假日由 offPeakDates 显式提供。
  */
 function beijingWeekday(time: number): number {
   // 北京时间比 UTC 早 8 小时：把时间推进 8h 再取 UTC 星期，得到正确的北京星期。
@@ -261,7 +262,7 @@ function isWeekday(time: number): boolean {
 
 /**
  * 样本时间是否落在任一高峰窗口（半开区间 [start, end)）。
- * 仅工作日且不在 offPeakDates 中判定高峰；周末全天视为谷底。
+ * 仅周一至周五且不在 offPeakDates 中判定高峰；调休上班的周末也全天视为谷底。
  */
 function isPeak(time: number, windows: readonly ReceiptPeakWindow[], offPeakDates: ReadonlySet<string>): boolean {
   if (!isWeekday(time)) return false

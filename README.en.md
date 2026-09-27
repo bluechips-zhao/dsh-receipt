@@ -150,7 +150,7 @@ footnote (2) defines:
 
 - **Peak hours**: Beijing time **Mon–Fri, excluding Chinese statutory holidays**,
   9:00–12:00 and 14:00–18:00.
-- **Off-peak**: outside those windows, **including weekends and Chinese statutory holidays**.
+- **Off-peak**: outside those windows, **including weekends (even make-up work weekends) and Chinese statutory holidays**.
 - The off-peak price is **half** the peak price (peak = off-peak × 2, matching the
   built-in `peakMultiplier: 2`).
 
@@ -163,7 +163,8 @@ footnote (2) defines:
 
 The receipt folds peak/off-peak from each step sample's timestamp: the built-in
 prices are the **off-peak** ones; samples inside a weekday peak window are charged
-`peakMultiplier` (default 2), and weekends are always off-peak. **Statutory holidays
+`peakMultiplier` (default 2), and Saturdays/Sundays remain off-peak even when
+designated as make-up workdays. **Statutory holidays
 are not updated automatically**: put Beijing dates (`YYYY-MM-DD`) in `offPeakDates`
 from the official holiday schedule, or those dates may be overestimated. No manual
 doubling is needed. Change the windows or multiplier through `peakHours` / `peakMultiplier`.

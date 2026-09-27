@@ -302,13 +302,17 @@ const TEST_LEGACY_PRICING: PricingTable = {
   assert.equal(view2.models[0]!.cost, 3)
 }
 
-// ---- 13. 周末全天谷底：周六/周日即使落在高峰窗口时段也不计高峰 ----
+// ---- 13. 周末全天谷底：包含调休上班的周六/周日 ----
 {
   // 1970-01-03 是周六。UTC 02:00 = 北京时间 10:00（默认高峰窗口内），但周末仍应按谷底计。
   const SATURDAY_BEIJING_PEAK_TS = 2 * 86_400_000 + 2 * 3_600_000 + 0
   // 1970-01-04 是周日。UTC 08:00 = 北京时间 16:00（默认高峰窗口内）。
   const SUNDAY_BEIJING_PEAK_TS = 3 * 86_400_000 + 8 * 3_600_000
-  for (const ts of [SATURDAY_BEIJING_PEAK_TS, SUNDAY_BEIJING_PEAK_TS]) {
+  // 2026 年国务院安排：9 月 20 日（周日）、10 月 10 日（周六）调休上班。
+  // API 定价仍按自然周末全天空闲，不因调休上班转为高峰。
+  const MAKEUP_SUNDAY_TS = Date.UTC(2026, 8, 20, 2) // 北京时间 10:00
+  const MAKEUP_SATURDAY_TS = Date.UTC(2026, 9, 10, 2)
+  for (const ts of [SATURDAY_BEIJING_PEAK_TS, SUNDAY_BEIJING_PEAK_TS, MAKEUP_SUNDAY_TS, MAKEUP_SATURDAY_TS]) {
     const state = fold([
       stepStart(1, 1, ts, seq()),
       message(1, 1, 'deepseek-chat', { inputTokens: 100, outputTokens: 50 }, ts + 100, seq()),
