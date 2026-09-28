@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import { type ReactElement } from 'react';
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import { NS } from './locales.ts';
 /** 会话 header action 的完整 props：标准 session kit + 本插件 locale。 */

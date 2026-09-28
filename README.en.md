@@ -2,12 +2,20 @@
 
 # dsh-receipt — Conversation usage receipt plugin
 
-Adds a receipt button to the DeepSeek Harness Web GUI. Its conversation panel shows:
+Adds a receipt button to the DeepSeek Harness conversation header. It opens a compact panel at the top right:
 
 - **Overview**: estimated cost, model calls, total tokens, cache hit rate, and average cost per call;
 - **Cost and usage mix**: four token buckets, cost/token share switching for up to five models, model time, and conversation span;
 - **Per-model details**: expandable call count, token buckets, and calculable cost; reasoning tokens are included in output;
 - **Useful controls**: copy a text summary, keyboard and narrow-screen support, light/dark themes, and reduced motion.
+
+## Screenshots
+
+These screenshots come from a local interactive preview. **All values and the session name are demo data**, not a real bill or a Desktop runtime capture. Open a conversation, click "Receipt" in its header, and select "View all model details" for the per-model view.
+
+| Dark overview | Light overview | Per-model details |
+| --- | --- | --- |
+| ![Dark receipt overview with demo data](./docs/images/receipt-panel-dark.jpg) | ![Light receipt overview with demo data](./docs/images/receipt-panel-light.jpg) | ![Per-model details with demo data](./docs/images/receipt-model-details.jpg) |
 
 Cache hit rate is `cached input / (regular input + cached input)`. When rates are
 missing, the panel labels the total as the "known portion of cost" and shows
@@ -40,8 +48,8 @@ pnpm dsh plugin --profile web add github:bluechips-zhao/dsh-receipt
 > DeepSeek Harness / any other AI) and let it run the `dsh plugin` install steps
 > below for you.
 
-After installing, **restart the GUI** (the receipt button appears on the right of
-the session header; open a conversation and click "Receipt").
+After installing, **fully quit and restart the GUI** (the receipt button appears on the right of
+the session header; open a conversation and click "Receipt"). Desktop and Web use separate profiles; install into the profile the GUI actually runs. A linked local plugin also needs a GUI restart after its client bundle changes.
 
 ### Discover more plugins
 

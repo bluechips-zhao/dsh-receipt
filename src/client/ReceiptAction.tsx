@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react'
+import { useSyncExternalStore, type ReactElement } from 'react'
 import { IconDataOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only：拉入 conversation 会话 slot 的 SlotMap 合并（header.actions 契约）。
@@ -16,11 +16,18 @@ export type ReceiptActionProps = PropsRuntime<'conversation.session.header.actio
  * @param props - session kit（sessionId）+ locale seat。
  */
 export function ReceiptAction({ sessionId, t }: ReceiptActionProps): ReactElement {
+  const ui = useSyncExternalStore(receiptUi.subscribe, receiptUi.getSnapshot)
+  const expanded = ui.open && ui.sessionId === sessionId
   return (
     <button
       type="button"
       className={css.trigger}
+      data-receipt-trigger
+      data-expanded={expanded}
       aria-label={t('action.aria')}
+      aria-haspopup="dialog"
+      aria-controls={expanded ? 'dsh-receipt-panel' : undefined}
+      aria-expanded={expanded}
       title={t('action.aria')}
       onClick={() => receiptUi.toggle(sessionId)}
     >

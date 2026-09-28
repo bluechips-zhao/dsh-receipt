@@ -100,7 +100,7 @@ function TokenMix({ receipt, t }: { receipt: ReceiptProjection; t: Translator })
   )
 }
 
-function ModelMix({ receipt, t }: { receipt: ReceiptProjection; t: Translator }) {
+function ModelMix({ receipt, t, onShowDetails }: { receipt: ReceiptProjection; t: Translator; onShowDetails: () => void }) {
   const [metric, setMetric] = useState<'cost' | 'tokens'>('cost')
   const sorted = [...receipt.models].sort((a, b) => metric === 'cost'
     ? b.cost - a.cost || b.calls - a.calls
@@ -127,6 +127,7 @@ function ModelMix({ receipt, t }: { receipt: ReceiptProjection; t: Translator })
           )
         })}
       </div>
+      <button type="button" className={css.detailLink} onClick={onShowDetails}>{t('models.showDetails')}<span aria-hidden>↗</span></button>
       {receipt.models.length > top.length ? <p className={css.subNote}>{t('models.more', { count: group(receipt.models.length - top.length) })}</p> : null}
     </section>
   )
@@ -164,6 +165,9 @@ export function ReceiptCard({ sessionId, useSessions, onClose, t }: ReceiptCardP
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   const closeRef = useRef<HTMLButtonElement | null>(null)
   const cardRef = useRef<HTMLDivElement | null>(null)
+  const switcherRef = useRef<HTMLDivElement | null>(null)
+  const previousViewRef = useRef(view)
+  const restoreFocusRef = useRef(false)
 
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -171,28 +175,39 @@ export function ReceiptCard({ sessionId, useSessions, onClose, t }: ReceiptCardP
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
         event.preventDefault()
+        restoreFocusRef.current = true
         onClose()
       }
-      if (event.key !== 'Tab' || cardRef.current === null) return
-      const focusable = Array.from(cardRef.current.querySelectorAll<HTMLElement>('button, summary, [tabindex]:not([tabindex="-1"])'))
-        .filter(element => !element.hasAttribute('disabled'))
-      if (focusable.length === 0) return
-      const first = focusable[0]!
-      const last = focusable[focusable.length - 1]!
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault()
-        first.focus()
-      }
+    }
+    const onPointerDown = (event: PointerEvent): void => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (cardRef.current?.contains(target) || target.closest('[data-receipt-trigger]')) return
+      onClose()
     }
     document.addEventListener('keydown', onKeyDown)
+    document.addEventListener('pointerdown', onPointerDown)
     return () => {
       document.removeEventListener('keydown', onKeyDown)
-      previous?.focus()
+      document.removeEventListener('pointerdown', onPointerDown)
+      if (restoreFocusRef.current) previous?.focus()
     }
   }, [onClose])
+
+  useEffect(() => {
+    if (copyState === 'idle') return
+    const timer = window.setTimeout(() => setCopyState('idle'), 2400)
+    return () => window.clearTimeout(timer)
+  }, [copyState])
+
+  useEffect(() => {
+    if (previousViewRef.current === view) return
+    previousViewRef.current = view
+    switcherRef.current?.scrollIntoView({
+      block: 'start',
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    })
+  }, [view])
 
   async function handleCopy(): Promise<void> {
     if (receipt === undefined) return
@@ -205,13 +220,13 @@ export function ReceiptCard({ sessionId, useSessions, onClose, t }: ReceiptCardP
   }
 
   return (
-    <div className={css.backdrop} onPointerDown={event => { if (event.target === event.currentTarget) onClose() }}>
-      <div ref={cardRef} className={css.card} role="dialog" aria-modal="true" aria-labelledby="dsh-receipt-title" data-receipt-modal>
+    <div className={css.anchor}>
+      <div id="dsh-receipt-panel" ref={cardRef} className={css.card} role="dialog" aria-labelledby="dsh-receipt-title" data-receipt-modal>
         <header className={css.header}>
           <div><div className={css.eyebrow}>{t('modal.eyebrow')}</div><h2 id="dsh-receipt-title" className={css.title}>{t('modal.title')}</h2></div>
           <div className={css.headerActions}>
-            <button type="button" className={css.copyButton} onClick={() => { void handleCopy() }} disabled={receipt === undefined}>{t('copy.action')}</button>
-            <button ref={closeRef} type="button" className={css.close} aria-label={t('modal.close')} onClick={onClose}><IconCloseOutlineRegular size={17} /></button>
+            <button type="button" className={css.copyButton} data-copy-state={copyState} onClick={() => { void handleCopy() }} disabled={receipt === undefined}>{copyState === 'copied' ? `✓ ${t('copy.success')}` : t('copy.action')}</button>
+            <button ref={closeRef} type="button" className={css.close} aria-label={t('modal.close')} onClick={() => { restoreFocusRef.current = true; onClose() }}><IconCloseOutlineRegular size={17} /></button>
           </div>
         </header>
         <div className={css.body}>
@@ -226,14 +241,14 @@ export function ReceiptCard({ sessionId, useSessions, onClose, t }: ReceiptCardP
                 <div><span>{t('stats.avg')}</span><strong>{receipt.priced && receipt.totals.calls > 0 ? money(receipt.totals.cost / receipt.totals.calls, receipt.currency) : t('notAvailable')}</strong></div>
               </div>
               {receipt.models.length > 0 && !receipt.priced ? <p className={css.warning}>{t('totals.unpriced')}</p> : null}
-              <div className={css.switcher} aria-label={t('view.label')}>
+              <div ref={switcherRef} className={css.switcher} aria-label={t('view.label')}>
                 <button type="button" aria-pressed={view === 'overview'} onClick={() => setView('overview')}>{t('view.overview')}</button>
                 <button type="button" aria-pressed={view === 'models'} onClick={() => setView('models')}>{t('view.models')}</button>
               </div>
               {view === 'overview' ? (
                 <div className={css.sections}>
                   <TokenMix receipt={receipt} t={t} />
-                  {receipt.models.length > 0 ? <ModelMix receipt={receipt} t={t} /> : null}
+                  {receipt.models.length > 0 ? <ModelMix receipt={receipt} t={t} onShowDetails={() => setView('models')} /> : null}
                   <section className={css.panel}>
                     <div className={css.sectionHead}><h3>{t('time.title')}</h3></div>
                     <div className={css.inlineMetrics}><div><span>{t('time.llm')}</span><strong>{duration(receipt.llmMs)}</strong></div><div><span>{t('time.span')}</span><strong>{duration(receipt.spanMs)}</strong></div></div>

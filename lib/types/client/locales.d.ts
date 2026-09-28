@@ -50,6 +50,7 @@ export declare const zh: {
     readonly 'models.tokenCount': "{count} tokens";
     readonly 'models.count': "{count} 个模型";
     readonly 'models.more': "还有 {count} 个模型，切换到模型明细查看。";
+    readonly 'models.showDetails': "查看全部模型明细";
     readonly 'time.title': "时间与峰谷";
     readonly 'detail.title': "逐模型明细";
     readonly 'detail.input': "普通输入";

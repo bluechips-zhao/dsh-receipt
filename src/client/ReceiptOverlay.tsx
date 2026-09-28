@@ -19,6 +19,7 @@ export function ReceiptOverlay({ useSessions, t }: ReceiptOverlayProps) {
   if (!ui.open || ui.sessionId === undefined) return null
   return (
     <ReceiptCard
+      key={ui.sessionId}
       sessionId={ui.sessionId}
       useSessions={useSessions}
       onClose={receiptUi.close}
