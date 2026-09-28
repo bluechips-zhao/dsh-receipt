@@ -97,6 +97,10 @@
 .heroLabel { color: var(--dsw-alias-label-secondary); font-size: 12px; font-weight: 600; }
 .heroAmount { margin: 5px 0 7px; font-size: 35px; font-weight: 730; letter-spacing: -.045em; font-variant-numeric: tabular-nums; line-height: 1.1; }
 .hero p { margin: 0; color: var(--dsw-alias-label-tertiary); font-size: 11px; line-height: 1.5; }
+.costSplit { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 9px; }
+.costSplit > div { min-width: 0; padding: 11px 13px; border: 1px solid var(--dsw-alias-border-l3); border-radius: 11px; background: var(--dsw-alias-bg-layer-2); }
+.costSplit span { display: block; color: var(--dsw-alias-label-secondary); font-size: 11px; }
+.costSplit strong { display: block; margin-top: 5px; font-size: 14px; font-variant-numeric: tabular-nums; }
 
 .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0 16px; }
 .stats > div { min-width: 0; padding: 13px 14px; border: 1px solid var(--dsw-alias-border-l3); border-radius: 13px; background: var(--dsw-alias-bg-layer-2); }
@@ -106,7 +110,7 @@
 
 .warning { margin: 0 0 14px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 12%, transparent); color: var(--dsw-alias-state-warn-primary); font-size: 12px; line-height: 1.5; }
 
-.switcher { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 4px; border-radius: 11px; background: var(--dsw-alias-bg-layer-2); border: 1px solid var(--dsw-alias-border-l3); scroll-margin-top: 12px; }
+.switcher { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; padding: 4px; border-radius: 11px; background: var(--dsw-alias-bg-layer-2); border: 1px solid var(--dsw-alias-border-l3); scroll-margin-top: 12px; }
 .switcher button { min-height: 34px; padding: 0 15px; border: 0; border-radius: 8px; background: transparent; color: var(--dsw-alias-label-secondary); font-size: 12px; font-weight: 620; cursor: pointer; transition: background-color .18s ease, color .18s ease, transform .18s ease; }
 .switcher button:hover { color: var(--dsw-alias-label-primary); }
 .switcher button:active { transform: scale(.97); }
@@ -171,6 +175,11 @@
 .breakdownTotal { padding-top: 8px; border-top: 1px solid var(--dsw-alias-border-l3); font-weight: 650; }
 .modelDetail .subNote,
 .modelDetail .warning { margin: 10px 17px 14px; }
+.childDetails { padding: 13px 17px 16px; }
+.childDetails .sectionHead { margin-bottom: 9px; }
+.childModelRow { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid var(--dsw-alias-border-l3); font-size: 11px; }
+.childModelRow span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.childModelRow strong { flex: none; font-variant-numeric: tabular-nums; }
 .sessionId { margin: 3px 0 0; color: var(--dsw-alias-label-tertiary); font-size: 10px; overflow-wrap: anywhere; }
 .footer { margin-top: 22px; text-align: center; color: var(--dsw-alias-label-tertiary); font-size: 10px; letter-spacing: .12em; }
 

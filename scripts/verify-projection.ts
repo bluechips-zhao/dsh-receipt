@@ -11,6 +11,8 @@ import type { SessionEvent, Session } from '@deepseek-ai/dsh-session'
 import type { TokenUsage } from '@deepseek-ai/dsh-llm'
 import { applyReceipt, receiptProjectionDefinition, receiptView, type ReceiptState } from '../src/projection.ts'
 import { DEFAULT_PRICING, type PricingTable } from '../src/pricing.ts'
+import { receiptTree } from '../src/client/receipt-tree.ts'
+import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 
 /** 构造会话事件（只含折叠所需字段）。 */
 function ev(type: string, data: Record<string, unknown>, time: number, seq: number): SessionEvent {
@@ -46,8 +48,9 @@ function stepEnd(turn: number, step: number, time: number, seq: number): Session
 }
 
 /** 跑一遍事件序列。 */
-function fold(events: SessionEvent[]): ReceiptState {
-  return events.reduce(applyReceipt, receiptProjectionDefinition({}, '¥').init())
+function fold(events: SessionEvent[], inheritedEventCount = 0): ReceiptState {
+  const definition = receiptProjectionDefinition({}, '¥')
+  return events.reduce(applyReceipt, definition.init({} as Parameters<typeof definition.init>[0], inheritedEventCount as Parameters<typeof definition.init>[1]))
 }
 
 const seq = (() => { let n = 0; return () => n++ })()
@@ -397,6 +400,57 @@ const TEST_LEGACY_PRICING: PricingTable = {
   ])
   assert.equal(receiptView(future, DEFAULT_PRICING, '¥').totals.cost, 2)
   assert.equal(receiptView(future, DEFAULT_PRICING, '¥', { offPeakDates: ['2027-10-01'] }).totals.cost, 1)
+}
+
+// ---- 18. Forked child does not charge its parent's inherited log again. ----
+{
+  const history = [
+    stepStart(1, 1, 0, 0),
+    message(1, 1, 'deepseek-flash', { inputTokens: 1_000_000, outputTokens: 0 }, 100, 1),
+    stepStart(2, 1, 200, 2),
+    message(2, 1, 'deepseek-flash', { inputTokens: 2_000_000, outputTokens: 0 }, 300, 3),
+  ]
+  const child = receiptView(fold(history, 2), DEFAULT_PRICING, '¥')
+  assert.equal(child.totals.inputTokens, 2_000_000)
+  assert.equal(child.totals.calls, 1)
+  assert.equal(child.totals.cost, 2)
+}
+
+// ---- 19. Parent + nested subagents are included once; unavailable and unrelated sessions are excluded. ----
+{
+  const make = (cost: number) => {
+    const state = fold([
+      stepStart(1, 1, 0, 0),
+      message(1, 1, 'deepseek-flash', { inputTokens: cost * 1_000_000, outputTokens: 0 }, 100, 1),
+    ])
+    return receiptView(state, DEFAULT_PRICING, '¥')
+  }
+  const state = { byId: {
+    root: { id: 'root', displayTitle: 'Root', projectionValues: { receipt: make(1) } },
+    child: { id: 'child', displayTitle: 'Child', origin: 'subagent', parentId: 'root', projectionValues: { receipt: make(2) } },
+    nested: { id: 'nested', displayTitle: 'Nested', origin: 'subagent', parentId: 'child', projectionValues: { receipt: make(3) } },
+    waiting: { id: 'waiting', displayTitle: 'Waiting', origin: 'subagent', parentId: 'root' },
+    fork: { id: 'fork', displayTitle: 'Fork', parentId: 'root', projectionValues: { receipt: make(100) } },
+    other: { id: 'other', displayTitle: 'Other', origin: 'subagent', parentId: 'elsewhere', projectionValues: { receipt: make(100) } },
+  } } as unknown as SessionListState
+  const tree = receiptTree(state, 'root')
+  assert.equal(tree.children.length, 3)
+  assert.equal(tree.childCost, 5)
+  assert.equal(tree.combined?.totals.cost, 6)
+  assert.equal(tree.missing, 1)
+  assert.equal(tree.combined?.priced, false)
+  assert.equal(tree.combined?.totals.calls, 3)
+  assert.equal(tree.combined?.models.length, 1)
+  assert.equal(tree.combined?.models[0]?.cost, 6)
+
+  const differentCurrency = { ...make(4), currency: '$' }
+  const mismatched = receiptTree({ byId: {
+    root: { id: 'root', displayTitle: 'Root', projectionValues: { receipt: make(1) } },
+    child: { id: 'child', displayTitle: 'Child', origin: 'subagent', parentId: 'root', projectionValues: { receipt: differentCurrency } },
+  } } as unknown as SessionListState, 'root')
+  assert.equal(mismatched.combined?.totals.cost, 1)
+  assert.equal(mismatched.currencyMismatch, 1)
+  assert.equal(mismatched.combined?.priced, false)
 }
 
 console.log('verify-projection: 全部断言通过 ✓')

@@ -4,9 +4,10 @@
 
 Adds a receipt button to the DeepSeek Harness conversation header. It opens a compact panel at the top right:
 
-- **Overview**: estimated cost, model calls, total tokens, cache hit rate, and average cost per call;
+- **Overview**: estimated total for the main session and all nested subagents, their subtotals, model calls, total tokens, cache hit rate, and average cost per call;
 - **Cost and usage mix**: four token buckets, cost/token share switching for up to five models, model time, and conversation span;
 - **Per-model details**: expandable call count, token buckets, and calculable cost; reasoning tokens are included in output;
+- **Subagent costs**: each subagent's cost, calls, and model subtotals; nested subagents are included once.
 - **Useful controls**: copy a text summary, keyboard and narrow-screen support, light/dark themes, and reduced motion.
 
 ## Screenshots
@@ -16,6 +17,10 @@ These screenshots come from a local interactive preview. **All values and the se
 | Dark overview | Light overview | Per-model details |
 | --- | --- | --- |
 | ![Dark receipt overview with demo data](./docs/images/receipt-panel-dark.jpg) | ![Light receipt overview with demo data](./docs/images/receipt-panel-light.jpg) | ![Per-model details with demo data](./docs/images/receipt-model-details.jpg) |
+
+| Total with subagents | Individual subagent costs |
+| --- | --- |
+| ![Main and subagent total with demo data](./docs/images/receipt-subagents-total.jpg) | ![Individual subagent costs with demo data](./docs/images/receipt-subagents-details.jpg) |
 
 Cache hit rate is `cached input / (regular input + cached input)`. When rates are
 missing, the panel labels the total as the "known portion of cost" and shows
@@ -30,9 +35,11 @@ real time via `session/projection` frames. The UI only renders; it issues no RPC
 [deepseek-harness-usage-dashboard](https://github.com/nzz0991999-ai/dsh-usage-dashboard)
 offers an account-wide balance and billed-spend view from DeepSeek's platform.
 This receipt borrows its cost/token distribution switch, while using only
-recorded usage from one conversation. It cannot replace the provider bill and
+recorded usage from one conversation and its subagents. It cannot replace the provider bill and
 requires no platform login. The dashboard uses undocumented platform usage
 endpoints, whose availability depends on DeepSeek's platform.
+
+The total sums independent usage projections in the session tree. A forked subagent's inherited parent log is excluded to prevent double charging. Missing usage or unpriced models make the total a known subtotal. Subagents using another currency remain visible but are excluded from the sum.
 
 ## Installation
 

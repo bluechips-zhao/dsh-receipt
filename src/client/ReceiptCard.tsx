@@ -4,6 +4,7 @@ import type { SnapshotSelectorHook, TranslateNS } from '@deepseek-ai/dsh-client-
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { ReceiptModelRow, ReceiptPeakWindow, ReceiptProjection } from '../types.ts'
 import { NS } from './locales.ts'
+import { receiptTree, type ReceiptTree } from './receipt-tree.ts'
 import css from './Receipt.module.css'
 
 export interface ReceiptCardProps {
@@ -52,7 +53,7 @@ function rowCost(row: ReceiptModelRow, currency: string, t: Translator): string 
   return row.cost > 0 ? `${money(row.cost, currency)} · ${t('partial')}` : t('unpriced')
 }
 
-function summaryText(receipt: ReceiptProjection, title: string, sessionId: string, t: Translator): string {
+function summaryText(receipt: ReceiptProjection, tree: ReceiptTree, title: string, sessionId: string, t: Translator): string {
   return [
     `${t('modal.title')} · ${title}`,
     t('session.id', { id: sessionId }),
@@ -61,7 +62,12 @@ function summaryText(receipt: ReceiptProjection, title: string, sessionId: strin
     `${t('stats.tokens')}: ${group(tokens(receipt.totals))}`,
     `${t('stats.cacheHit')}: ${cacheRate(receipt) ?? t('notAvailable')}`,
     `${t('time.llm')}: ${duration(receipt.llmMs)}`,
-    `${t('time.span')}: ${duration(receipt.spanMs)}`,
+    `${t(tree.children.length > 0 ? 'time.parentSpan' : 'time.span')}: ${tree.own === undefined ? t('notAvailable') : duration(receipt.spanMs)}`,
+    `${t('total.own')}: ${tree.own === undefined ? t('children.pending') : money(tree.own.totals.cost, tree.own.currency)}`,
+    `${t('total.children')}: ${money(tree.childCost, receipt.currency)}`,
+    ...tree.children.map(child => `${'  '.repeat(child.depth)}${child.title}: ${child.receipt === undefined ? t('children.pending') : money(child.receipt.totals.cost, child.receipt.currency)}`),
+    ...(tree.missing > 0 ? [t('total.missing', { count: group(tree.missing) })] : []),
+    ...(tree.currencyMismatch > 0 ? [t('total.currencyMismatch', { count: group(tree.currencyMismatch) })] : []),
     '',
     ...receipt.models.map(row => `${row.model || t('unknownModel')} · ${rowCost(row, receipt.currency, t)} · ${t('row.calls', { count: group(row.calls) })}`),
     '',
@@ -158,10 +164,12 @@ function ModelDetails({ row, currency, t }: { row: ReceiptModelRow; currency: st
 }
 
 export function ReceiptCard({ sessionId, useSessions, onClose, t }: ReceiptCardProps) {
-  const summary = useSessions((state: SessionListState) => state.byId[sessionId as keyof SessionListState['byId']])
-  const receipt = summary?.projectionValues?.receipt
+  const sessionState = useSessions((state: SessionListState) => state)
+  const summary = sessionState.byId[sessionId as keyof SessionListState['byId']]
+  const tree = receiptTree(sessionState, sessionId)
+  const receipt = tree.combined
   const title = summary?.displayTitle || t('session.untitled')
-  const [view, setView] = useState<'overview' | 'models'>('overview')
+  const [view, setView] = useState<'overview' | 'models' | 'children'>('overview')
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   const closeRef = useRef<HTMLButtonElement | null>(null)
   const cardRef = useRef<HTMLDivElement | null>(null)
@@ -212,7 +220,7 @@ export function ReceiptCard({ sessionId, useSessions, onClose, t }: ReceiptCardP
   async function handleCopy(): Promise<void> {
     if (receipt === undefined) return
     try {
-      await navigator.clipboard.writeText(summaryText(receipt, title, sessionId, t))
+      await navigator.clipboard.writeText(summaryText(receipt, tree, title, sessionId, t))
       setCopyState('copied')
     } catch {
       setCopyState('failed')
@@ -233,7 +241,13 @@ export function ReceiptCard({ sessionId, useSessions, onClose, t }: ReceiptCardP
           {receipt === undefined ? <p className={css.empty}>{t('empty')}</p> : (
             <div className={css.dashboard} data-receipt-content>
               <div className={css.sessionMeta}><strong title={title}>{title}</strong><span>{receipt.updatedAt > 0 ? t('updatedAt', { time: new Date(receipt.updatedAt).toLocaleString() }) : t('updated.unknown')}</span></div>
-              <div className={css.hero}><div className={css.heroLabel}>{t(receipt.priced ? 'total.estimated' : 'total.known')}</div><div className={css.heroAmount}>{money(receipt.totals.cost, receipt.currency)}</div><p>{t('total.disclaimer')}</p></div>
+              <div className={css.hero}><div className={css.heroLabel}>{t(receipt.priced ? (tree.children.length > 0 ? 'total.withChildren' : 'total.estimated') : 'total.known')}</div><div className={css.heroAmount}>{money(receipt.totals.cost, receipt.currency)}</div><p>{t('total.disclaimer')}</p></div>
+              {tree.children.length > 0 ? <div className={css.costSplit}>
+                <div><span>{t('total.own')}</span><strong>{tree.own === undefined ? t('children.pending') : money(tree.own.totals.cost, tree.own.currency)}</strong></div>
+                <div><span>{t('total.children')}</span><strong>{money(tree.childCost, receipt.currency)}</strong></div>
+              </div> : null}
+              {tree.missing > 0 ? <p className={css.warning}>{t('total.missing', { count: group(tree.missing) })}</p> : null}
+              {tree.currencyMismatch > 0 ? <p className={css.warning}>{t('total.currencyMismatch', { count: group(tree.currencyMismatch) })}</p> : null}
               <div className={css.stats}>
                 <div><span>{t('stats.calls')}</span><strong>{group(receipt.totals.calls)}</strong></div>
                 <div><span>{t('stats.tokens')}</span><strong>{group(tokens(receipt.totals))}</strong></div>
@@ -244,6 +258,7 @@ export function ReceiptCard({ sessionId, useSessions, onClose, t }: ReceiptCardP
               <div ref={switcherRef} className={css.switcher} aria-label={t('view.label')}>
                 <button type="button" aria-pressed={view === 'overview'} onClick={() => setView('overview')}>{t('view.overview')}</button>
                 <button type="button" aria-pressed={view === 'models'} onClick={() => setView('models')}>{t('view.models')}</button>
+                <button type="button" aria-pressed={view === 'children'} onClick={() => setView('children')}>{t('view.children')}{tree.children.length > 0 ? ` ${tree.children.length}` : ''}</button>
               </div>
               {view === 'overview' ? (
                 <div className={css.sections}>
@@ -251,16 +266,35 @@ export function ReceiptCard({ sessionId, useSessions, onClose, t }: ReceiptCardP
                   {receipt.models.length > 0 ? <ModelMix receipt={receipt} t={t} onShowDetails={() => setView('models')} /> : null}
                   <section className={css.panel}>
                     <div className={css.sectionHead}><h3>{t('time.title')}</h3></div>
-                    <div className={css.inlineMetrics}><div><span>{t('time.llm')}</span><strong>{duration(receipt.llmMs)}</strong></div><div><span>{t('time.span')}</span><strong>{duration(receipt.spanMs)}</strong></div></div>
+                    <div className={css.inlineMetrics}><div><span>{t('time.llm')}</span><strong>{duration(receipt.llmMs)}</strong></div><div><span>{t(tree.children.length > 0 ? 'time.parentSpan' : 'time.span')}</span><strong>{tree.own === undefined ? t('notAvailable') : duration(receipt.spanMs)}</strong></div></div>
                     {receipt.totals.peakCost > 0 ? <p className={css.subNote}>{t('totals.peakCost', { amount: money(receipt.totals.peakCost, receipt.currency) })}</p> : null}
                     <p className={css.subNote}>{t('peak.note', { window: windowsLabel(receipt.peakHours), multiplier: group(receipt.peakMultiplier) })}</p>
                   </section>
                 </div>
-              ) : (
+              ) : view === 'models' ? (
                 <div className={css.sections}>
                   <div className={css.sectionHead}><h3>{t('detail.title')}</h3><span>{t('models.count', { count: group(receipt.models.length) })}</span></div>
                   {receipt.models.length === 0 ? <p className={css.empty}>{t('empty')}</p> : receipt.models.map((row: ReceiptModelRow) => <ModelDetails key={`${row.provider}\u0000${row.model}`} row={row} currency={receipt.currency} t={t} />)}
                   <p className={css.sessionId}>{t('session.id', { id: sessionId })}</p>
+                </div>
+              ) : (
+                <div className={css.sections}>
+                  <div className={css.sectionHead}><h3>{t('children.title')}</h3><span>{t('children.count', { count: group(tree.children.length) })}</span></div>
+                  {tree.children.length === 0 ? <p className={css.empty}>{t('children.empty')}</p> : tree.children.map(child => (
+                    <details key={child.id} className={css.modelDetail}>
+                      <summary>
+                        <span className={css.modelDetailMain} style={{ paddingLeft: `${Math.min(child.depth - 1, 3) * 12}px` }}><strong title={child.title}>{child.title}</strong><small>{child.receipt === undefined ? t('children.pending') : `${t('row.calls', { count: group(child.receipt.totals.calls) })} · ${t('models.tokenCount', { count: group(tokens(child.receipt.totals)) })}`}</small></span>
+                        <span className={css.modelDetailAmount}>{child.receipt === undefined ? t('notAvailable') : child.receipt.priced || child.receipt.models.length === 0 ? money(child.receipt.totals.cost, child.receipt.currency) : `${money(child.receipt.totals.cost, child.receipt.currency)} · ${t('partial')}`}</span>
+                      </summary>
+                      <div className={css.childDetails}>
+                        {child.receipt === undefined ? <p className={css.subNote}>{t('children.pending')}</p> : <>
+                          <div className={css.sectionHead}><h3>{t('children.models')}</h3><span>{t('models.count', { count: group(child.receipt.models.length) })}</span></div>
+                          {child.receipt.models.map(row => <div className={css.childModelRow} key={`${row.provider}\u0000${row.model}`}><span>{row.model || t('unknownModel')}</span><strong>{rowCost(row, child.receipt!.currency, t)}</strong></div>)}
+                          {!child.receipt.priced && child.receipt.models.length > 0 ? <p className={css.subNote}>{t('children.partial')}</p> : null}
+                        </>}
+                      </div>
+                    </details>
+                  ))}
                 </div>
               )}
               <div className={css.footer}>{t('footer')}</div>

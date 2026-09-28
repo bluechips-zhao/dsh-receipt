@@ -43,6 +43,8 @@ interface ModelBucketState extends ReceiptTokenCounts {
 
 /** 单元折叠状态：模型桶 + 逐 step 样本 + 时间边界。 */
 export interface ReceiptState {
+  /** Forked child sessions inherit a log prefix; those events belong to the parent. */
+  inheritedEventCount: number
   /** provider\0model → 桶；未知模型用空串键（UNKNOWN_KEY）。 */
   models: Record<string, ModelBucketState>
   /** "turn:step" → 该 step 的最新样本。 */
@@ -182,6 +184,7 @@ function undefinedSample(): StepSample {
 
 /** 单元 apply：一次提交事件 → 下一状态；不关心的事件返回同一引用。 */
 export function applyReceipt(state: ReceiptState, event: SessionEvent): ReceiptState {
+  if (event.seq < state.inheritedEventCount) return state
   switch (event.type) {
     case 'step/start': {
       const { turn, step } = event.data
@@ -438,6 +441,7 @@ const stepSampleStateSchema = tokenCountsSchema.extend({
 
 /** `receipt` 单元的持久化 state schema（验证折叠中间态，非 wire 值）。 */
 const receiptStateSchema = z.object({
+  inheritedEventCount: z.number().int().nonnegative(),
   models: z.record(z.string(), modelBucketStateSchema),
   steps: z.record(z.string(), stepSampleStateSchema),
   llmMs: z.number().nonnegative(),
@@ -491,12 +495,12 @@ export function receiptProjectionDefinition(
   return {
     key: 'receipt',
     stateSchema: receiptStateSchema,
-    init: () => ({ models: {}, steps: {}, llmMs: 0, firstTime: null, lastTime: null, openStep: null }),
+    init: (_header, inheritedEventCount) => ({ inheritedEventCount, models: {}, steps: {}, llmMs: 0, firstTime: null, lastTime: null, openStep: null }),
     apply: applyReceipt,
     wire: {
       viewSchema: receiptSchema,
       view: state => receiptView(state, pricing, currency, options),
     },
-    stateVersion: 2,
+    stateVersion: 3,
   }
 }

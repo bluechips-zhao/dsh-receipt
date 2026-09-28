@@ -37,6 +37,8 @@ interface ModelBucketState extends ReceiptTokenCounts {
 }
 /** 单元折叠状态：模型桶 + 逐 step 样本 + 时间边界。 */
 export interface ReceiptState {
+    /** Forked child sessions inherit a log prefix; those events belong to the parent. */
+    inheritedEventCount: number;
     /** provider\0model → 桶；未知模型用空串键（UNKNOWN_KEY）。 */
     models: Record<string, ModelBucketState>;
     /** "turn:step" → 该 step 的最新样本。 */
