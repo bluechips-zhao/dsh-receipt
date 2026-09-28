@@ -7,7 +7,7 @@ Adds a receipt button to the DeepSeek Harness conversation header. It opens a co
 - **Overview**: estimated total for the main session and all nested subagents, their subtotals, model calls, total tokens, cache hit rate, and average cost per call;
 - **Cost and usage mix**: four token buckets, cost/token share switching for up to five models, model time, and conversation span;
 - **Per-model details**: expandable call count, token buckets, and calculable cost; reasoning tokens are included in output;
-- **Subagent costs**: each subagent's cost, calls, and model subtotals; nested subagents are included once.
+- **Subagent costs**: expand delegation levels and distinguish each agent's own cost from its entire descendant branch; search by name or session ID, load 20 siblings at a time, and inspect calls and model subtotals.
 - **Useful controls**: copy a text summary, keyboard and narrow-screen support, light/dark themes, and reduced motion.
 
 ## Screenshots
@@ -21,6 +21,8 @@ These screenshots come from a local interactive preview. **All values and the se
 | Total with subagents | Individual subagent costs |
 | --- | --- |
 | ![Main and subagent total with demo data](./docs/images/receipt-subagents-total.jpg) | ![Individual subagent costs with demo data](./docs/images/receipt-subagents-details.jpg) |
+
+The subagent tab starts with top-level agents. Expand a row to reveal its direct children; search reveals the ancestor path to each match. Indentation is capped at four steps while each row still shows its actual depth.
 
 Cache hit rate is `cached input / (regular input + cached input)`. When rates are
 missing, the panel labels the total as the "known portion of cost" and shows

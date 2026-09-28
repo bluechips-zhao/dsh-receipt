@@ -11,7 +11,7 @@ import type { SessionEvent, Session } from '@deepseek-ai/dsh-session'
 import type { TokenUsage } from '@deepseek-ai/dsh-llm'
 import { applyReceipt, receiptProjectionDefinition, receiptView, type ReceiptState } from '../src/projection.ts'
 import { DEFAULT_PRICING, type PricingTable } from '../src/pricing.ts'
-import { receiptTree } from '../src/client/receipt-tree.ts'
+import { receiptTree, visibleReceiptRows } from '../src/client/receipt-tree.ts'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 
 /** 构造会话事件（只含折叠所需字段）。 */
@@ -442,6 +442,23 @@ const TEST_LEGACY_PRICING: PricingTable = {
   assert.equal(tree.combined?.totals.calls, 3)
   assert.equal(tree.combined?.models.length, 1)
   assert.equal(tree.combined?.models[0]?.cost, 6)
+  assert.deepEqual(tree.children.map(child => child.id), ['child', 'nested', 'waiting'])
+  assert.equal(tree.children[0]?.descendants, 1)
+  assert.equal(tree.children[0]?.branchCost, 5)
+  assert.equal(tree.children[0]?.branchPriced, true)
+  assert.deepEqual(visibleReceiptRows(tree, new Set(), {}, '').filter(row => row.kind === 'child').map(row => row.child.id), ['child', 'waiting'])
+  assert.deepEqual(visibleReceiptRows(tree, new Set(['child']), {}, '').filter(row => row.kind === 'child').map(row => row.child.id), ['child', 'nested', 'waiting'])
+  assert.deepEqual(visibleReceiptRows(tree, new Set(), {}, 'Nested').filter(row => row.kind === 'child').map(row => row.child.id), ['child', 'nested'])
+  assert.deepEqual(visibleReceiptRows(tree, new Set(), {}, 'nested').filter(row => row.kind === 'child').map(row => row.child.id), ['child', 'nested'])
+
+  const loading = receiptTree({ byId: {
+    root: { id: 'root', displayTitle: 'Root' },
+    child: { id: 'child', displayTitle: 'Child', origin: 'subagent', parentId: 'root' },
+    nested: { id: 'nested', displayTitle: 'Nested', origin: 'subagent', parentId: 'child' },
+  } } as unknown as SessionListState, 'root')
+  assert.equal(loading.combined, undefined)
+  assert.equal(loading.children[0]?.directChildren, 1)
+  assert.equal(loading.children[0]?.descendants, 1)
 
   const differentCurrency = { ...make(4), currency: '$' }
   const mismatched = receiptTree({ byId: {
@@ -451,6 +468,33 @@ const TEST_LEGACY_PRICING: PricingTable = {
   assert.equal(mismatched.combined?.totals.cost, 1)
   assert.equal(mismatched.currencyMismatch, 1)
   assert.equal(mismatched.combined?.priced, false)
+}
+
+// ---- 20. Deep delegation and broad sibling sets stay iterative and paged. ----
+{
+  const rootReceipt = receiptView(fold([
+    stepStart(1, 1, 0, 0),
+    message(1, 1, 'deepseek-flash', { inputTokens: 1_000_000, outputTokens: 0 }, 100, 1),
+  ]), DEFAULT_PRICING, '¥')
+  const byId: Record<string, unknown> = { root: { id: 'root', displayTitle: 'Root', projectionValues: { receipt: rootReceipt } } }
+  for (let index = 0; index < 120; index++) byId[`wide-${index}`] = { id: `wide-${index}`, displayTitle: `Wide ${index}`, origin: 'subagent', parentId: 'root' }
+  for (let index = 0; index < 1_500; index++) byId[`deep-${index}`] = {
+    id: `deep-${index}`, displayTitle: `Deep ${index}`, origin: 'subagent',
+    parentId: index === 0 ? 'wide-0' : `deep-${index - 1}`,
+  }
+  const tree = receiptTree({ byId } as unknown as SessionListState, 'root')
+  assert.equal(tree.children.length, 1_620)
+  assert.equal(tree.children.find(child => child.id === 'wide-0')?.descendants, 1_500)
+  assert.equal(tree.children.find(child => child.id === 'deep-1499')?.depth, 1_501)
+  const initial = visibleReceiptRows(tree, new Set(), {}, '')
+  assert.equal(initial.filter(row => row.kind === 'child').length, 20)
+  assert.equal(initial.at(-1)?.kind, 'more')
+  assert.equal(initial.at(-1)?.kind === 'more' ? initial.at(-1)?.remaining : 0, 100)
+  const next = visibleReceiptRows(tree, new Set(), { root: 40 }, '')
+  assert.equal(next.filter(row => row.kind === 'child').length, 40)
+  const found = visibleReceiptRows(tree, new Set(), {}, 'Deep 1499')
+  assert.equal(found.filter(row => row.kind === 'child').length, 1_501)
+  assert.equal(found.at(-1)?.kind === 'child' ? found.at(-1)?.child.id : '', 'deep-1499')
 }
 
 console.log('verify-projection: 全部断言通过 ✓')

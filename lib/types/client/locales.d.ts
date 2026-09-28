@@ -54,6 +54,16 @@ export declare const zh: {
     readonly 'children.pending': "暂无用量数据";
     readonly 'children.partial': "此子代理包含未计价用量";
     readonly 'children.models': "模型费用明细";
+    readonly 'children.search': "查找子代理";
+    readonly 'children.searchEmpty': "没有匹配的子代理";
+    readonly 'children.showMore': "再显示 20 个 · 剩余 {count} 个";
+    readonly 'children.level': "第 {count} 层";
+    readonly 'children.descendants': "下派 {count} 个";
+    readonly 'children.own': "本代理";
+    readonly 'children.branchTotal': "含下派总费用 {amount}";
+    readonly 'children.branchKnown': "含下派已知费用 {amount}";
+    readonly 'children.expand': "展开 {name} 的子代理";
+    readonly 'children.collapse': "收起 {name} 的子代理";
     readonly 'mix.title': "Token 结构";
     readonly 'mix.reasoning': "其中推理 {tokens}，已包含在输出中。";
     readonly 'models.title': "模型分布";

@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { IconCloseOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SnapshotSelectorHook, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { ReceiptModelRow, ReceiptPeakWindow, ReceiptProjection } from '../types.ts'
 import { NS } from './locales.ts'
-import { receiptTree, type ReceiptTree } from './receipt-tree.ts'
+import { CHILD_PAGE_SIZE, receiptTree, visibleReceiptRows, type ReceiptTree } from './receipt-tree.ts'
 import css from './Receipt.module.css'
 
 export interface ReceiptCardProps {
@@ -65,7 +65,7 @@ function summaryText(receipt: ReceiptProjection, tree: ReceiptTree, title: strin
     `${t(tree.children.length > 0 ? 'time.parentSpan' : 'time.span')}: ${tree.own === undefined ? t('notAvailable') : duration(receipt.spanMs)}`,
     `${t('total.own')}: ${tree.own === undefined ? t('children.pending') : money(tree.own.totals.cost, tree.own.currency)}`,
     `${t('total.children')}: ${money(tree.childCost, receipt.currency)}`,
-    ...tree.children.map(child => `${'  '.repeat(child.depth)}${child.title}: ${child.receipt === undefined ? t('children.pending') : money(child.receipt.totals.cost, child.receipt.currency)}`),
+    ...tree.children.map(child => `${'  '.repeat(Math.min(child.depth, 5))}${child.title}: ${child.receipt === undefined ? t('children.pending') : money(child.receipt.totals.cost, child.receipt.currency)}`),
     ...(tree.missing > 0 ? [t('total.missing', { count: group(tree.missing) })] : []),
     ...(tree.currencyMismatch > 0 ? [t('total.currencyMismatch', { count: group(tree.currencyMismatch) })] : []),
     '',
@@ -166,10 +166,14 @@ function ModelDetails({ row, currency, t }: { row: ReceiptModelRow; currency: st
 export function ReceiptCard({ sessionId, useSessions, onClose, t }: ReceiptCardProps) {
   const sessionState = useSessions((state: SessionListState) => state)
   const summary = sessionState.byId[sessionId as keyof SessionListState['byId']]
-  const tree = receiptTree(sessionState, sessionId)
+  const tree = useMemo(() => receiptTree(sessionState, sessionId), [sessionState, sessionId])
   const receipt = tree.combined
   const title = summary?.displayTitle || t('session.untitled')
   const [view, setView] = useState<'overview' | 'models' | 'children'>('overview')
+  const [expandedChildren, setExpandedChildren] = useState<Set<string>>(() => new Set())
+  const [childLimits, setChildLimits] = useState<Record<string, number>>({})
+  const [childQuery, setChildQuery] = useState('')
+  const visibleChildren = useMemo(() => visibleReceiptRows(tree, expandedChildren, childLimits, childQuery), [tree, expandedChildren, childLimits, childQuery])
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   const closeRef = useRef<HTMLButtonElement | null>(null)
   const cardRef = useRef<HTMLDivElement | null>(null)
@@ -280,21 +284,29 @@ export function ReceiptCard({ sessionId, useSessions, onClose, t }: ReceiptCardP
               ) : (
                 <div className={css.sections}>
                   <div className={css.sectionHead}><h3>{t('children.title')}</h3><span>{t('children.count', { count: group(tree.children.length) })}</span></div>
-                  {tree.children.length === 0 ? <p className={css.empty}>{t('children.empty')}</p> : tree.children.map(child => (
-                    <details key={child.id} className={css.modelDetail}>
-                      <summary>
-                        <span className={css.modelDetailMain} style={{ paddingLeft: `${Math.min(child.depth - 1, 3) * 12}px` }}><strong title={child.title}>{child.title}</strong><small>{child.receipt === undefined ? t('children.pending') : `${t('row.calls', { count: group(child.receipt.totals.calls) })} · ${t('models.tokenCount', { count: group(tokens(child.receipt.totals)) })}`}</small></span>
-                        <span className={css.modelDetailAmount}>{child.receipt === undefined ? t('notAvailable') : child.receipt.priced || child.receipt.models.length === 0 ? money(child.receipt.totals.cost, child.receipt.currency) : `${money(child.receipt.totals.cost, child.receipt.currency)} · ${t('partial')}`}</span>
-                      </summary>
-                      <div className={css.childDetails}>
-                        {child.receipt === undefined ? <p className={css.subNote}>{t('children.pending')}</p> : <>
-                          <div className={css.sectionHead}><h3>{t('children.models')}</h3><span>{t('models.count', { count: group(child.receipt.models.length) })}</span></div>
-                          {child.receipt.models.map(row => <div className={css.childModelRow} key={`${row.provider}\u0000${row.model}`}><span>{row.model || t('unknownModel')}</span><strong>{rowCost(row, child.receipt!.currency, t)}</strong></div>)}
-                          {!child.receipt.priced && child.receipt.models.length > 0 ? <p className={css.subNote}>{t('children.partial')}</p> : null}
-                        </>}
+                  {tree.children.length > 0 ? <input className={css.childSearch} type="search" value={childQuery} onChange={event => setChildQuery(event.target.value)} placeholder={t('children.search')} aria-label={t('children.search')} /> : null}
+                  {tree.children.length === 0 ? <p className={css.empty}>{t('children.empty')}</p> : visibleChildren.length === 0 ? <p className={css.empty}>{t('children.searchEmpty')}</p> : visibleChildren.map(row => {
+                    if (row.kind === 'more') return <button key={`more:${row.parentId}`} type="button" className={css.childMore} style={{ '--receipt-depth': Math.min(row.depth - 1, 4) } as CSSProperties} onClick={() => setChildLimits(previous => ({ ...previous, [row.parentId]: (previous[row.parentId] ?? CHILD_PAGE_SIZE) + CHILD_PAGE_SIZE }))}>{t('children.showMore', { count: group(row.remaining) })}</button>
+                    const child = row.child
+                    const expanded = expandedChildren.has(child.id) || childQuery.trim() !== ''
+                    return <div key={child.id} className={css.childTreeRow} style={{ '--receipt-depth': Math.min(child.depth - 1, 4) } as CSSProperties}>
+                      <div className={css.childTreeHeader}>
+                        {child.directChildren > 0 ? <button type="button" className={css.childToggle} aria-expanded={expanded} aria-label={t(expanded ? 'children.collapse' : 'children.expand', { name: child.title })} disabled={childQuery.trim() !== ''} onClick={() => setExpandedChildren(previous => {
+                          const next = new Set(previous)
+                          if (next.has(child.id)) next.delete(child.id)
+                          else next.add(child.id)
+                          return next
+                        })}>{expanded ? '⌄' : '›'}</button> : <span className={css.childLeaf} aria-hidden>·</span>}
+                        <div className={css.childTreeMain}><strong title={child.title}>{child.title}</strong><small>{t('children.level', { count: group(child.depth) })}{child.directChildren > 0 ? ` · ${t('children.descendants', { count: group(child.descendants) })}` : ''}</small></div>
+                        <div className={css.childTreeAmount}><strong>{child.receipt === undefined ? t('notAvailable') : money(child.receipt.totals.cost, child.receipt.currency)}</strong><small>{t('children.own')}</small></div>
                       </div>
-                    </details>
-                  ))}
+                      {child.directChildren > 0 ? <div className={css.childBranchTotal}>{t(child.branchPriced ? 'children.branchTotal' : 'children.branchKnown', { amount: money(child.branchCost, receipt.currency) })}</div> : null}
+                      {child.receipt === undefined ? <p className={css.subNote}>{t('children.pending')}</p> : <>
+                        <div className={css.childUsage}>{t('row.calls', { count: group(child.receipt.totals.calls) })} · {t('models.tokenCount', { count: group(tokens(child.receipt.totals)) })}</div>
+                        {child.receipt.models.length > 0 ? <details className={css.childModels}><summary>{t('children.models')}</summary><div className={css.childDetails}>{child.receipt.models.map(model => <div className={css.childModelRow} key={`${model.provider}\u0000${model.model}`}><span>{model.model || t('unknownModel')}</span><strong>{rowCost(model, child.receipt!.currency, t)}</strong></div>)}{!child.receipt.priced ? <p className={css.subNote}>{t('children.partial')}</p> : null}</div></details> : null}
+                      </>}
+                    </div>
+                  })}
                 </div>
               )}
               <div className={css.footer}>{t('footer')}</div>

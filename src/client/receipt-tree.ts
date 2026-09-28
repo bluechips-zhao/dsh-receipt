@@ -3,18 +3,70 @@ import type { ReceiptModelRow, ReceiptProjection } from '../types.ts'
 
 export interface ReceiptChild {
   id: string
+  parentId: string
   title: string
   depth: number
   receipt: ReceiptProjection | undefined
+  directChildren: number
+  descendants: number
+  branchCost: number
+  branchMissing: number
+  branchCurrencyMismatch: number
+  branchPriced: boolean
 }
 
 export interface ReceiptTree {
+  rootId: string
   own: ReceiptProjection | undefined
   combined: ReceiptProjection | undefined
   children: ReceiptChild[]
+  childrenByParent: Map<string, ReceiptChild[]>
   missing: number
   currencyMismatch: number
   childCost: number
+}
+
+export const CHILD_PAGE_SIZE = 20
+
+export type ReceiptVisibleRow =
+  | { kind: 'child'; child: ReceiptChild }
+  | { kind: 'more'; parentId: string; depth: number; remaining: number }
+
+/** Render only open branches and a bounded page of siblings; search reveals matching paths. */
+export function visibleReceiptRows(
+  tree: ReceiptTree,
+  expanded: ReadonlySet<string>,
+  limits: Readonly<Record<string, number>>,
+  query: string,
+): ReceiptVisibleRow[] {
+  const needle = query.trim().toLocaleLowerCase()
+  const allowed = new Set<string>()
+  if (needle !== '') {
+    for (let index = tree.children.length - 1; index >= 0; index--) {
+      const child = tree.children[index]!
+      if (!child.title.toLocaleLowerCase().includes(needle) && !child.id.toLocaleLowerCase().includes(needle) && !allowed.has(child.id)) continue
+      allowed.add(child.id)
+      if (child.parentId !== tree.rootId) allowed.add(child.parentId)
+    }
+  }
+  const result: ReceiptVisibleRow[] = []
+  const tasks: ReceiptVisibleRow[] = []
+  const pushSiblings = (parentId: string, depth: number): void => {
+    const siblings = tree.childrenByParent.get(parentId) ?? []
+    const matching = needle === '' ? siblings : siblings.filter(child => allowed.has(child.id))
+    const limit = limits[parentId] ?? CHILD_PAGE_SIZE
+    if (matching.length > limit) tasks.push({ kind: 'more', parentId, depth, remaining: matching.length - limit })
+    for (let index = Math.min(matching.length, limit) - 1; index >= 0; index--) tasks.push({ kind: 'child', child: matching[index]! })
+  }
+  pushSiblings(tree.rootId, 1)
+  while (tasks.length > 0) {
+    const row = tasks.pop()!
+    result.push(row)
+    if (row.kind === 'child' && row.child.directChildren > 0 && (needle !== '' || expanded.has(row.child.id))) {
+      pushSiblings(row.child.id, row.child.depth + 1)
+    }
+  }
+  return result
 }
 
 const countFields = ['inputTokens', 'outputTokens', 'cacheReadTokens', 'cacheWriteTokens', 'reasoningTokens'] as const
@@ -29,20 +81,54 @@ export function receiptTree(state: SessionListState, rootId: string): ReceiptTre
     byParent.set(row.parentId, siblings)
   }
   const children: ReceiptChild[] = []
+  const childrenByParent = new Map<string, ReceiptChild[]>()
   const seen = new Set<string>([rootId])
-  const visit = (parentId: string, depth: number): void => {
-    for (const row of byParent.get(parentId) ?? []) {
-      if (seen.has(row.id)) continue
-      seen.add(row.id)
-      children.push({ id: row.id, title: row.displayTitle, depth, receipt: row.projectionValues?.receipt })
-      visit(row.id, depth + 1)
+  const stack: { row: SessionSummary; parentId: string; depth: number }[] = []
+  const roots = byParent.get(rootId) ?? []
+  for (let index = roots.length - 1; index >= 0; index--) stack.push({ row: roots[index]!, parentId: rootId, depth: 1 })
+  while (stack.length > 0) {
+    const { row, parentId, depth } = stack.pop()!
+    if (seen.has(row.id)) continue
+    seen.add(row.id)
+    const child: ReceiptChild = {
+      id: row.id, parentId, title: row.displayTitle, depth, receipt: row.projectionValues?.receipt,
+      directChildren: 0, descendants: 0, branchCost: 0, branchMissing: 0,
+      branchCurrencyMismatch: 0, branchPriced: true,
     }
+    children.push(child)
+    const list = childrenByParent.get(parentId) ?? []
+    list.push(child)
+    childrenByParent.set(parentId, list)
+    const nested = byParent.get(row.id) ?? []
+    for (let index = nested.length - 1; index >= 0; index--) stack.push({ row: nested[index]!, parentId: row.id, depth: depth + 1 })
   }
-  visit(rootId, 1)
+
+  // Hierarchy remains usable while projections are still loading.
+  for (let index = children.length - 1; index >= 0; index--) {
+    const child = children[index]!
+    const direct = childrenByParent.get(child.id) ?? []
+    child.directChildren = direct.length
+    child.descendants = direct.reduce((sum, item) => sum + 1 + item.descendants, 0)
+  }
 
   const own = state.byId[rootId as keyof SessionListState['byId']]?.projectionValues?.receipt
   const source = own ?? children.find(child => child.receipt !== undefined)?.receipt
-  if (source === undefined) return { own, combined: undefined, children, missing: children.length, currencyMismatch: 0, childCost: 0 }
+  if (source === undefined) return { rootId, own, combined: undefined, children, childrenByParent, missing: children.length, currencyMismatch: 0, childCost: 0 }
+
+  // Bottom-up subtree totals keep a parent's own cost distinct from all delegated descendants.
+  for (let index = children.length - 1; index >= 0; index--) {
+    const child = children[index]!
+    const direct = childrenByParent.get(child.id) ?? []
+    child.branchMissing = (child.receipt === undefined ? 1 : 0) + direct.reduce((sum, item) => sum + item.branchMissing, 0)
+    child.branchCurrencyMismatch = (child.receipt !== undefined && child.receipt.currency !== source.currency ? 1 : 0)
+      + direct.reduce((sum, item) => sum + item.branchCurrencyMismatch, 0)
+    child.branchCost = (child.receipt?.currency === source.currency ? child.receipt.totals.cost : 0)
+      + direct.reduce((sum, item) => sum + item.branchCost, 0)
+    child.branchPriced = child.receipt !== undefined
+      && child.receipt.currency === source.currency
+      && (child.receipt.models.length === 0 || child.receipt.priced)
+      && direct.every(item => item.branchPriced)
+  }
 
   const models = new Map<string, ReceiptModelRow>()
   const totals = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0, calls: 0, cost: 0, peakCost: 0 }
@@ -89,5 +175,5 @@ export function receiptTree(state: SessionListState, rootId: string): ReceiptTre
     peakHours: source.peakHours,
     peakMultiplier: source.peakMultiplier,
   }
-  return { own, combined, children, missing, currencyMismatch, childCost }
+  return { rootId, own, combined, children, childrenByParent, missing, currencyMismatch, childCost }
 }
